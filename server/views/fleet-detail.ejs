@@ -145,13 +145,9 @@
       }
 
       el('reserveBtn').addEventListener('click', function () {
-        // Online checkout (booking form + e-sign + Stripe) ships in Phase 5.
-        // Until then, surface the chosen dates and route to a phone reservation.
-        var note = el('reserveNote');
-        note.hidden = false;
-        note.innerHTML = 'Online checkout is launching shortly. To lock in <strong>' +
-          current.start + ' → ' + current.end + '</strong>, call ' +
-          '<a href="tel:+14196543584" style="color:var(--green)">(419) 654-3584</a>.';
+        if (!current) return;
+        var p = new URLSearchParams({ slug: T.slug, start: current.start, end: current.end });
+        window.location.href = '/book/new?' + p.toString();
       });
 
       createCalendar({ container: '#calendar', slug: T.slug, months: 2, onSelect: onRange });

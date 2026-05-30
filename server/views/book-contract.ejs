@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rental Agreement — <%= booking.ref_code %> | Glass City Trailer Rentals</title>
+  <link rel="icon" href="/images/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/site.css" />
+  <style>
+    .agreement { font-size: 14px; line-height: 1.7; }
+    .agreement h3 { font-family: 'Anton', sans-serif; font-size: 18px; text-transform: uppercase; margin: 22px 0 8px; }
+    .agreement p { margin: 0 0 10px; color: #cfd3c9; }
+    .sum-table { width: 100%; border-collapse: collapse; margin: 12px 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+    .sum-table td { padding: 6px 0; border-bottom: 1px dashed var(--line-2); vertical-align: top; }
+    .sum-table td:first-child { color: var(--ink-dim); width: 42%; }
+    .draft-banner { background: rgba(255,212,0,.12); border: 1px solid var(--hazard); color: var(--hazard);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; }
+    .sig-canvas { width: 100%; height: 140px; background: #fff; border-radius: 6px; touch-action: none; display: block; }
+    .sig-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+    .consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; font-size: 13px; color: var(--ink-dim); line-height: 1.4; }
+    .consent input { width: auto; margin-top: 3px; }
+    .linkbtn { background: none; border: 0; color: var(--green); font-family: 'JetBrains Mono', monospace; font-size: 11px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header class="site-head">
+    <div class="site-head-inner">
+      <a class="back" href="/">‹ <span>Home</span></a>
+      <a href="/"><img class="logo" src="/images/logo.png" alt="Glass City Trailer Rentals" /></a>
+      <a class="call" href="tel:+14196543584">Call</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="detail">
+      <!-- Agreement -->
+      <section class="agreement">
+        <div class="crumb">Reserve / Step 2 of 3 — Rental Agreement</div>
+        <h1 class="display" style="font-size:clamp(30px,5vw,46px);"><%= agreement.title %></h1>
+        <div class="draft-banner">DRAFT TEMPLATE — pending Ohio attorney review. Contract version <%= agreement.version %>.</div>
+
+        <table class="sum-table">
+          <% agreement.summary.forEach(function (row) { %>
+            <tr><td><%= row.label %></td><td><%= row.value %></td></tr>
+          <% }); %>
+        </table>
+
+        <% agreement.sections.forEach(function (s) { %>
+          <h3><%= s.heading %></h3>
+          <% s.paragraphs.forEach(function (p) { %><p><%= p %></p><% }); %>
+        <% }); %>
+      </section>
+
+      <!-- Sign panel -->
+      <aside class="panel">
+        <h2>Sign &amp; Pay</h2>
+        <p class="dim mono" style="font-size:12px;">Total due: <strong style="color:var(--green)"><%= fmt(booking.total_cents) %></strong></p>
+
+        <div class="step">Type your full legal name</div>
+        <div class="field-row"><div><input type="text" id="signName" value="<%= booking.customer_name %>" autocomplete="name" /></div></div>
+
+        <div class="step">Draw your signature (optional)</div>
+        <canvas id="sigCanvas" class="sig-canvas"></canvas>
+        <div class="sig-row"><span class="dim mono" style="font-size:10px;">Sign above with finger or mouse</span><button type="button" class="linkbtn" id="clearSig">Clear</button></div>
+
+        <label class="consent"><input type="checkbox" id="agree" /><span>I have read and agree to this rental agreement.</span></label>
+        <label class="consent"><input type="checkbox" id="consent" /><span>I consent to sign electronically and to receive the signed agreement and records electronically.</span></label>
+
+        <button class="btn btn-primary" id="signBtn" type="button">Sign &amp; Pay →</button>
+        <p class="err" id="err"></p>
+        <p class="qnote" id="okNote" hidden></p>
+        <p class="qnote">Your name, signature, IP address, device, and the exact agreement text are recorded as your electronic signature.</p>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var BOOKING_ID = <%- JSON.stringify(booking.id) %>;
+      var REF = <%- JSON.stringify(booking.ref_code) %>;
+      var el = function (id) { return document.getElementById(id); };
+
+      // ----- Signature canvas (mouse + touch, hi-dpi) -----
+      var canvas = el('sigCanvas');
+      var ctx = canvas.getContext('2d');
+      var drawn = false, drawing = false, last = null;
+      function sizeCanvas() {
+        var ratio = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * ratio;
+        canvas.height = rect.height * ratio;
+        ctx.scale(ratio, ratio);
+        ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#0a0d0a';
+      }
+      function pos(e) {
+        var rect = canvas.getBoundingClientRect();
+        var t = e.touches ? e.touches[0] : e;
+        return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+      }
+      function startDraw(e) { drawing = true; last = pos(e); e.preventDefault(); }
+      function moveDraw(e) {
+        if (!drawing) return;
+        var p = pos(e);
+        ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+        last = p; drawn = true; e.preventDefault();
+      }
+      function endDraw() { drawing = false; }
+      sizeCanvas();
+      window.addEventListener('resize', function () { var d = drawn; sizeCanvas(); drawn = d; });
+      canvas.addEventListener('mousedown', startDraw); canvas.addEventListener('mousemove', moveDraw);
+      window.addEventListener('mouseup', endDraw);
+      canvas.addEventListener('touchstart', startDraw, { passive: false });
+      canvas.addEventListener('touchmove', moveDraw, { passive: false });
+      canvas.addEventListener('touchend', endDraw);
+      el('clearSig').addEventListener('click', function () { ctx.clearRect(0, 0, canvas.width, canvas.height); drawn = false; });
+
+      // ----- Sign + pay -----
+      el('signBtn').addEventListener('click', async function () {
+        el('err').textContent = ''; el('okNote').hidden = true;
+        var name = el('signName').value.trim();
+        if (!name) { el('err').textContent = 'Type your full legal name to sign.'; return; }
+        if (!el('agree').checked || !el('consent').checked) { el('err').textContent = 'Please check both boxes to sign.'; return; }
+
+        var btn = el('signBtn'); btn.disabled = true; btn.textContent = 'Signing…';
+        try {
+          var signRes = await fetch('/api/bookings/' + BOOKING_ID + '/sign', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: name, agree: true, consent: true,
+              signature_image: drawn ? canvas.toDataURL('image/png') : null,
+            }),
+          });
+          var signData = await signRes.json().catch(function () { return {}; });
+          if (!signRes.ok) throw new Error(signData.error || 'Could not record your signature.');
+
+          btn.textContent = 'Redirecting to payment…';
+          var coRes = await fetch('/api/bookings/' + BOOKING_ID + '/checkout', { method: 'POST' });
+          var coData = await coRes.json().catch(function () { return {}; });
+          if (coRes.ok && coData.url) { window.location.href = coData.url; return; }
+          if (coData.already_paid) { window.location.href = coData.redirect; return; }
+
+          // Payments not configured yet (or unavailable): booking is signed.
+          el('okNote').hidden = false;
+          el('okNote').innerHTML = 'Your agreement is signed ✓ — reference <strong>' + REF + '</strong>. ' +
+            (coData.code === 'stripe_unconfigured'
+              ? 'Online payment isn\'t enabled yet; call <a href="tel:+14196543584" style="color:var(--green)">(419) 654-3584</a> to pay.'
+              : (coData.error || 'Payment could not be started.')) +
+            ' <a href="/book/' + REF + '" style="color:var(--green)">View booking →</a>';
+          btn.textContent = 'Signed ✓';
+        } catch (err) {
+          el('err').textContent = err.message;
+          btn.disabled = false; btn.textContent = 'Sign & Pay →';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

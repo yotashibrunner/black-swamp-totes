@@ -156,11 +156,14 @@
       el('ack').addEventListener('change', refreshReserve);
 
       el('reserveBtn').addEventListener('click', function () {
-        // Online checkout (booking + e-sign + Stripe) ships in Phase 5.
-        var note = el('reserveNote');
-        note.hidden = false;
-        note.innerHTML = 'Online checkout is launching shortly. To schedule drop-off on <strong>' +
-          el('dropDate').value + '</strong>, call <a href="tel:+14196543584" style="color:var(--green)">(419) 654-3584</a>.';
+        if (!el('dropDate').value) return;
+        var p = new URLSearchParams({
+          slug: T.slug,
+          start: el('dropDate').value,
+          extra_days: String(Math.max(0, parseInt(el('extraDays').value, 10) || 0)),
+          tire_count: String(Math.max(0, parseInt(el('tireCount').value, 10) || 0)),
+        });
+        window.location.href = '/book/new?' + p.toString();
       });
 
       update();

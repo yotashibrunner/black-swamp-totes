@@ -40,6 +40,17 @@ const config = {
   refreshTokenTtl: process.env.REFRESH_TOKEN_TTL || '30d',
   // bcrypt cost factor for password hashing (plan §13: 12 rounds).
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS, 10) || 12,
+
+  // ── Payments — Stripe (Phase 5) ─────────────────────────────────────
+  // Optional: when unset, the booking flow still works up through signing;
+  // the checkout step reports that payments aren't configured yet.
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+
+  // ── Email — Resend (Phase 5) ────────────────────────────────────────
+  // Optional: when unset, confirmation emails are skipped (logged, not sent).
+  resendApiKey: process.env.RESEND_API_KEY || '',
+  fromEmail: process.env.FROM_EMAIL || 'bookings@glasscitytrailerrentals.com',
 };
 
 config.isProduction = config.env === 'production';

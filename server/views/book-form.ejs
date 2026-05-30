@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reserve <%= trailer.name %> | Glass City Trailer Rentals</title>
+  <link rel="icon" href="/images/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+  <header class="site-head">
+    <div class="site-head-inner">
+      <a class="back" href="<%= isDumpster ? '/book/dumpster' : '/fleet/' + trailer.slug %>">‹ <span>Back</span></a>
+      <a href="/"><img class="logo" src="/images/logo.png" alt="Glass City Trailer Rentals" /></a>
+      <a class="call" href="tel:+14196543584">Call</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="detail">
+      <section>
+        <div class="crumb">Reserve / Step 1 of 3 — Your Info</div>
+        <h1 class="display"><%= trailer.name %></h1>
+
+        <div class="eyebrow" style="margin:18px 0 10px;">Order Summary</div>
+        <div class="quote" style="border-top:0;padding-top:0;">
+          <% if (isDumpster) { %>
+            <div class="qrow"><span>Drop-off date</span><span><%= selection.start_at %></span></div>
+            <div class="qrow"><span>Extra days</span><span><%= selection.extra_days %></span></div>
+          <% } else { %>
+            <div class="qrow"><span>Pickup</span><span><%= selection.start_at %></span></div>
+            <div class="qrow"><span>Return</span><span><%= selection.end_at %></span></div>
+            <div class="qrow"><span>Days</span><span><%= quote.quantity %></span></div>
+          <% } %>
+          <div class="qrow"><span>Subtotal</span><span><%= fmt(quote.base_cents) %></span></div>
+          <div class="qrow"><span>Tax</span><span><%= fmt(quote.tax_cents) %></span></div>
+          <div class="qtotal">
+            <span class="lbl">Total</span>
+            <span class="val"><%= fmt(quote.total_cents) %></span>
+          </div>
+          <p class="qnote">Full balance is charged after you sign the rental agreement. Customer pickup at 2004 Front St, Toledo.</p>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <h2>Your Information</h2>
+        <form id="bookForm" novalidate>
+          <div class="step">Contact</div>
+          <div class="field-row"><div><label class="fl">Full name *</label><input type="text" id="name" autocomplete="name" required /></div></div>
+          <div class="field-row two" style="margin-top:12px;">
+            <div><label class="fl">Phone *</label><input type="text" id="phone" inputmode="tel" autocomplete="tel" required /></div>
+            <div><label class="fl">Email</label><input type="text" id="email" inputmode="email" autocomplete="email" /></div>
+          </div>
+          <div class="step">Notes</div>
+          <div class="field-row"><div><input type="text" id="notes" placeholder="Anything we should know?" /></div></div>
+
+          <button class="btn btn-primary" id="continueBtn" type="submit">Continue to Sign →</button>
+          <p class="err" id="err"></p>
+          <p class="qnote">Next: review &amp; e-sign the rental agreement, then pay the balance securely.</p>
+        </form>
+      </aside>
+    </div>
+  </main>
+
+  <script id="selection-data" type="application/json"><%- JSON.stringify(selection) %></script>
+  <script>
+    (function () {
+      var sel = JSON.parse(document.getElementById('selection-data').textContent);
+      var el = function (id) { return document.getElementById(id); };
+      var form = el('bookForm');
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        el('err').textContent = '';
+        var name = el('name').value.trim();
+        var phone = el('phone').value.trim();
+        if (!name || !phone) { el('err').textContent = 'Name and phone are required.'; return; }
+        var btn = el('continueBtn');
+        btn.disabled = true; btn.textContent = 'Working…';
+        try {
+          var res = await fetch('/api/bookings', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(Object.assign({}, sel, {
+              customer: { name: name, phone: phone, email: el('email').value.trim() },
+              notes: el('notes').value.trim(),
+            })),
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (!res.ok) throw new Error(data.error || 'Could not create the booking.');
+          window.location.href = '/book/' + data.id + '/contract';
+        } catch (err) {
+          el('err').textContent = err.message;
+          btn.disabled = false; btn.textContent = 'Continue to Sign →';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

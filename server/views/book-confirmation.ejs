@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Booking <%= booking.ref_code %> | Glass City Trailer Rentals</title>
+  <link rel="icon" href="/images/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+  <header class="site-head">
+    <div class="site-head-inner">
+      <a class="back" href="/">‹ <span>Home</span></a>
+      <a href="/"><img class="logo" src="/images/logo.png" alt="Glass City Trailer Rentals" /></a>
+      <a class="call" href="tel:+14196543584">Call</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div style="max-width:560px;margin:44px auto 80px;">
+      <%
+        var paid = booking.status === 'paid';
+        var signed = !!booking.contract_signed_at;
+        var statusLabel = paid ? 'Confirmed & Paid' : (signed ? 'Signed — Payment Pending' : 'Pending');
+      %>
+      <div class="eyebrow"><%= paid ? 'Booking Confirmed' : 'Booking' %></div>
+      <h1 class="display" style="font-size:clamp(40px,8vw,72px);margin:8px 0;"><%= booking.ref_code %></h1>
+
+      <div class="panel" style="position:static;">
+        <div class="quote" style="border-top:0;padding-top:0;">
+          <div class="qrow"><span>Status</span><span style="color:<%= paid ? 'var(--green)' : 'var(--hazard)' %>"><%= statusLabel %></span></div>
+          <div class="qrow"><span>Equipment</span><span><%= booking.trailer_name %></span></div>
+          <div class="qrow"><span><%= booking.trailer_type === 'dumpster' ? 'Drop-off' : 'Pickup' %></span><span><%= new Date(booking.start_at).toLocaleDateString('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }) %></span></div>
+          <div class="qrow"><span><%= booking.trailer_type === 'dumpster' ? 'Pickup' : 'Return' %></span><span><%= new Date(booking.end_at).toLocaleDateString('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }) %></span></div>
+          <div class="qtotal">
+            <span class="lbl"><%= paid ? 'Paid' : 'Total' %></span>
+            <span class="val"><%= fmt(booking.total_cents) %></span>
+          </div>
+        </div>
+
+        <p class="qnote" style="margin-top:16px;">
+          Pickup at <strong>2004 Front Street, Toledo, OH 43605</strong> (7am–7pm). Bring a properly rated tow vehicle and connections.
+        </p>
+
+        <% if (signed) { %>
+          <a class="btn btn-ghost" href="/api/bookings/<%= booking.ref_code %>/contract.pdf" target="_blank" rel="noopener" style="margin-top:14px;">Download Signed Agreement (PDF)</a>
+        <% } %>
+        <a class="btn btn-ghost" href="/book/<%= booking.ref_code %>/calendar.ics" style="margin-top:10px;">Add to Calendar (.ics)</a>
+
+        <% if (!paid && signed) { %>
+          <a class="btn btn-primary" href="/book/<%= booking.id %>/contract" style="margin-top:10px;">Complete Payment →</a>
+          <p class="qnote">Your agreement is signed. Finish payment online, or call (419) 654-3584.</p>
+        <% } %>
+      </div>
+
+      <% if (justPaid) { %>
+        <p class="qnote" style="text-align:center;margin-top:18px;color:var(--green);">Payment received — a confirmation email with your signed agreement is on its way.</p>
+      <% } %>
+    </div>
+  </main>
+</body>
+</html>

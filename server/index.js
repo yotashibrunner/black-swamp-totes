@@ -14,7 +14,12 @@ app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-app.use(express.json());
+// Stripe webhook needs the raw request body to verify the signature, so it is
+// registered before the JSON body parser.
+const webhookRoutes = require('./routes/webhooks');
+app.use('/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+
+app.use(express.json({ limit: '1mb' })); // headroom for base64 signature images
 app.use(express.urlencoded({ extended: true }));
 
 const authRoutes = require('./routes/auth');

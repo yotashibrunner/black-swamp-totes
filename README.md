@@ -5,9 +5,27 @@ site and an operator PWA. Single Express app, single Postgres database, deployed
 to Railway. See [`../PLAN.md`](../PLAN.md) for the full architecture and phased
 build plan.
 
-> **Status:** Phases 0–2 complete. The marketing site is served at `/`, and the
-> operator PWA (with JWT login) is at `/operator/`. The booking flow, payments,
-> and contracts arrive in later phases.
+> **Status:** Phases 0–5 complete. The marketing site is served at `/`, the
+> operator PWA (JWT login + inventory) is at `/operator/`, customers can check
+> availability and get live quotes at `/fleet/:slug` and `/book/dumpster`, and
+> the full booking → e-signed contract → Stripe checkout flow lives under
+> `/book/*`. Payments (Stripe) and confirmation email (Resend) activate once
+> their keys are set — without keys, booking + signing still work and the
+> checkout step reports that payments aren't configured yet.
+
+### Phase 5 setup (payments + email)
+
+Set these env vars (Railway → Variables) to turn on payments and email:
+
+- `STRIPE_SECRET_KEY` — Stripe secret (use a **test** key first: `sk_test_…`).
+- `STRIPE_WEBHOOK_SECRET` — from the Stripe webhook endpoint you create pointing
+  at `https://<host>/webhooks/stripe` (event `checkout.session.completed`).
+- `RESEND_API_KEY` and `FROM_EMAIL` — for the confirmation email + attached PDF.
+
+Signed contracts are **not** written to disk (Railway's filesystem is
+ephemeral). The exact signed text is stored on the booking row and the PDF is
+regenerated on demand at `/api/bookings/:ref/contract.pdf`. The contract
+template language is a **draft** pending Ohio attorney review (plan §13).
 
 ## Stack
 

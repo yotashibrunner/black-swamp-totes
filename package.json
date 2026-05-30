@@ -24,7 +24,10 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
     "node-pg-migrate": "^8.0.4",
-    "pg": "^8.13.1"
+    "pdfkit": "^0.18.0",
+    "pg": "^8.13.1",
+    "resend": "^6.12.4",
+    "stripe": "^22.2.0"
   },
   "devDependencies": {
     "sharp": "^0.34.5"
