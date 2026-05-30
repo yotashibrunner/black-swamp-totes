@@ -66,6 +66,17 @@
     <main class="screen content">
       <p class="muted welcome" data-welcome></p>
 
+      <nav class="nav-list">
+        <button type="button" class="nav-item" data-nav="inventory">
+          <span class="nav-icon" aria-hidden="true">🚚</span>
+          <span class="nav-text">
+            <span class="nav-label">Inventory</span>
+            <span class="nav-sub muted">Trailers, status &amp; pricing</span>
+          </span>
+          <span class="nav-chevron" aria-hidden="true">›</span>
+        </button>
+      </nav>
+
       <section class="card">
         <h2>Today's Pickups</h2>
         <p class="empty" data-empty>Nothing scheduled yet.</p>
@@ -82,8 +93,69 @@
       </section>
 
       <p class="muted hint">
-        Booking management, schedule, and inventory arrive in upcoming phases.
+        Booking management and schedule arrive in upcoming phases.
       </p>
+    </main>
+  </template>
+
+  <!-- ── Inventory view ─────────────────────────────────────────────── -->
+  <template id="tpl-inventory">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
+      <span class="topbar-title">Inventory</span>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="screen content">
+      <p class="empty" data-loading>Loading fleet…</p>
+      <p class="error" data-error hidden></p>
+      <ul class="trailer-list" data-list hidden></ul>
+    </main>
+  </template>
+
+  <!-- Single row in the inventory list (cloned per trailer). -->
+  <template id="tpl-trailer-row">
+    <li class="trailer-row">
+      <button type="button" class="trailer-open" data-open>
+        <img class="thumb" data-thumb alt="" width="64" height="64" />
+        <span class="trailer-meta">
+          <span class="trailer-name" data-name></span>
+          <span class="trailer-sub muted" data-sub></span>
+        </span>
+        <span class="badge" data-badge></span>
+      </button>
+      <button type="button" class="btn btn-toggle" data-toggle></button>
+    </li>
+  </template>
+
+  <!-- ── Trailer detail view ────────────────────────────────────────── -->
+  <template id="tpl-trailer-detail">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
+      <span class="topbar-title">Trailer</span>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="screen content">
+      <img class="detail-photo" data-photo alt="" hidden />
+
+      <section class="card detail-head">
+        <h2 data-title>Trailer</h2>
+        <p class="muted" data-typeline></p>
+        <div class="status-row">
+          <span class="badge" data-badge></span>
+          <button type="button" class="btn btn-toggle" data-toggle></button>
+        </div>
+      </section>
+
+      <form class="card detail-form" data-form novalidate>
+        <h2>Details</h2>
+        <!-- Fields are injected by app.js based on trailer type. -->
+        <div class="fields" data-fields></div>
+        <p class="error" data-error hidden></p>
+        <p class="saved muted" data-saved hidden>Saved.</p>
+        <button type="submit" class="btn btn-primary" data-save>Save changes</button>
+      </form>
     </main>
   </template>
 

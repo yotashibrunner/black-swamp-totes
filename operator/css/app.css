@@ -136,6 +136,131 @@ input:focus-visible {
 }
 .topbar-title { font-weight: 700; font-size: 1.05rem; }
 
+.topbar-spacer { width: 64px; }   /* balances the Back button so title centers */
+
+/* ── Dashboard nav list ─────────────────────────────────────────────── */
+.nav-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  color: var(--text);
+  cursor: pointer;
+}
+.nav-item:active { background: var(--surface-2); }
+.nav-icon { font-size: 1.4rem; line-height: 1; }
+.nav-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.nav-label { font-weight: 600; }
+.nav-sub { font-size: 0.82rem; }
+.nav-chevron { color: var(--muted); font-size: 1.4rem; }
+
+/* ── Inventory list ─────────────────────────────────────────────────── */
+.trailer-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.trailer-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.trailer-open {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 12px 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+.trailer-open:active { background: var(--surface-2); }
+.thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.thumb-broken { visibility: hidden; }
+.trailer-meta { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.trailer-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trailer-sub { font-size: 0.82rem; }
+
+/* ── Status badge ───────────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-ok { background: rgba(61, 163, 93, 0.18); color: #6fd58c; }
+.badge-oos { background: rgba(229, 83, 75, 0.18); color: #f08a83; }
+
+/* ── Toggle button (full-width footer of each row) ──────────────────── */
+.btn-toggle {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.btn-toggle.btn-danger { color: #f08a83; }
+.btn-toggle.btn-restore { color: #6fd58c; }
+.btn-toggle:active { background: var(--border); }
+
+/* ── Trailer detail ─────────────────────────────────────────────────── */
+.detail-photo {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+.detail-head h2 { margin: 0 0 4px; }
+.status-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.status-row .btn-toggle {
+  width: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  min-height: 40px;
+}
+.detail-form .fields { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; }
+.detail-form textarea {
+  width: 100%;
+  font-size: 1rem;
+  font-family: inherit;
+  padding: 13px 14px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  resize: vertical;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.detail-form textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+.saved { color: var(--accent); margin: 0; }
+
 /* ── Misc ───────────────────────────────────────────────────────────── */
 .muted { color: var(--muted); font-size: 0.9rem; }
 .welcome { margin: 4px 2px 0; }
