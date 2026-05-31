@@ -23,6 +23,9 @@
     const slug = opts.slug;
     const months = opts.months || 2;
     const onSelect = opts.onSelect || function () {};
+    // 'range' (trailers: pick start + end) or 'single' (dumpster: pick a
+    // drop-off date). Single mode selects one day and emits { start, date }.
+    const mode = opts.mode === 'single' ? 'single' : 'range';
 
     let busy = [];          // [{ s, e }] in ms
     let start = null;       // Date
@@ -49,8 +52,8 @@
         busy = (data.busy || []).map((b) => ({ s: new Date(b.start_at).getTime(), e: new Date(b.end_at).getTime() }));
         available = data.status === 'available';
         statusEl.textContent = available
-          ? 'Select your pickup and return dates.'
-          : 'This trailer is currently unavailable — call (419) 654-3584.';
+          ? (mode === 'single' ? 'Select your drop-off date.' : 'Select your pickup and return dates.')
+          : 'This item is currently unavailable — call (419) 654-3584.';
       } else {
         statusEl.textContent = 'Could not load availability.';
       }
@@ -71,12 +74,23 @@
     }
 
     function emit() {
+      if (mode === 'single') {
+        onSelect(start ? { start: ymd(start), date: ymd(start) } : null);
+        return;
+      }
       if (start && end) onSelect({ start: ymd(start), end: ymd(end), days: dayCount(start, end) });
       else onSelect(null);
     }
 
     function pick(day) {
       if (!available || isBusy(day) || day < startOfToday()) return;
+      if (mode === 'single') {
+        // One day = the drop-off date.
+        start = day; end = null;
+        render();
+        emit();
+        return;
+      }
       if (!start || (start && end)) {
         start = day; end = null;
       } else if (day < start) {
@@ -160,7 +174,10 @@
 
     render();
     return {
-      get value() { return start && end ? { start: ymd(start), end: ymd(end), days: dayCount(start, end) } : null; },
+      get value() {
+        if (mode === 'single') return start ? { start: ymd(start), date: ymd(start) } : null;
+        return start && end ? { start: ymd(start), end: ymd(end), days: dayCount(start, end) } : null;
+      },
       reset() { start = null; end = null; render(); emit(); },
     };
   }

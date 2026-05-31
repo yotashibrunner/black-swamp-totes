@@ -65,11 +65,8 @@
         <h2>Book This Bin</h2>
         <p class="dim mono" style="font-size:12px;">Choose your drop-off date and length.</p>
 
-        <div class="step">Step 1 — Drop-off Date</div>
-        <div class="field-row">
-          <label class="sr-only" for="dropDate">Drop-off date</label>
-          <input type="date" id="dropDate" min="<%= new Date().toISOString().slice(0,10) %>" />
-        </div>
+        <div class="step" id="cal-step">Step 1 — Drop-off Date</div>
+        <div id="calendar" role="group" aria-labelledby="cal-step"></div>
 
         <div class="step">Step 2 — How Long?</div>
         <div class="field-row two">
@@ -111,14 +108,16 @@
 
   <script id="trailer-data" type="application/json"><%- JSON.stringify(trailer) %></script>
   <script src="/js/quote.js"></script>
+  <script src="/js/calendar.js"></script>
   <script>
     (function () {
       var T = JSON.parse(document.getElementById('trailer-data').textContent);
       var el = function (id) { return document.getElementById(id); };
       var lastQuote = null;
+      var dropDate = null; // 'YYYY-MM-DD', chosen on the availability calendar
 
       function refreshReserve() {
-        el('reserveBtn').disabled = !(lastQuote && el('dropDate').value && el('ack').checked);
+        el('reserveBtn').disabled = !(lastQuote && dropDate && el('ack').checked);
       }
 
       async function update() {
@@ -154,14 +153,21 @@
       }
 
       ['extraDays', 'tireCount'].forEach(function (id) { el(id).addEventListener('input', update); });
-      el('dropDate').addEventListener('change', refreshReserve);
       el('ack').addEventListener('change', refreshReserve);
 
+      // Availability calendar — single drop-off date (busy/blacked-out days are
+      // disabled). The drop-off occupies the included + extra days; the server
+      // re-checks the full window when the booking is created.
+      createCalendar({
+        container: '#calendar', slug: T.slug, months: 2, mode: 'single',
+        onSelect: function (sel) { dropDate = sel ? sel.start : null; refreshReserve(); },
+      });
+
       el('reserveBtn').addEventListener('click', function () {
-        if (!el('dropDate').value) return;
+        if (!dropDate) return;
         var p = new URLSearchParams({
           slug: T.slug,
-          start: el('dropDate').value,
+          start: dropDate,
           extra_days: String(Math.max(0, parseInt(el('extraDays').value, 10) || 0)),
           tire_count: String(Math.max(0, parseInt(el('tireCount').value, 10) || 0)),
         });
