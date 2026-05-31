@@ -48,12 +48,12 @@ async function notifyNewBooking(booking, baseUrl) {
   });
 }
 
-// Daily operator summary (used by the reminders cron). `text` is a prebuilt
-// single-line summary.
+// Daily operator summary (used by the reminders cron). `text` is the full,
+// already-branded summary line — sent verbatim over SMS.
 async function notifyOperatorSummary(text, baseUrl) {
   return dispatch({
-    push: { title: 'Today at Glass City', body: text, url: `${baseUrl || ''}/operator/`, tag: 'daily-summary' },
-    sms: `Glass City — ${text}`,
+    push: { title: 'Good morning — Glass City', body: text, url: `${baseUrl || ''}/operator/`, tag: 'daily-summary' },
+    sms: text,
   });
 }
 

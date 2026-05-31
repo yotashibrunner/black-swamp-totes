@@ -52,19 +52,26 @@ const config = {
   resendApiKey: process.env.RESEND_API_KEY || '',
   fromEmail: process.env.FROM_EMAIL || 'bookings@glasscitytrailerrentals.com',
 
-  // ── Web Push — VAPID (Phase 8) ──────────────────────────────────────
+  // ── Web Push — VAPID (Phase 8 / Session 3) ──────────────────────────
   // Optional: when unset, push subscribe/send are no-ops (logged). Generate a
-  // keypair with `npm run generate-vapid` and set both halves + a subject.
+  // keypair with `npm run generate-vapid`. The VAPID subject can be given as a
+  // bare email via VAPID_EMAIL (preferred) or a full mailto: via VAPID_SUBJECT.
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
-  vapidSubject: process.env.VAPID_SUBJECT || 'mailto:owner@glasscitytrailerrentals.com',
+  vapidSubject:
+    process.env.VAPID_SUBJECT
+    || (process.env.VAPID_EMAIL ? `mailto:${process.env.VAPID_EMAIL}` : 'mailto:owner@glasscitytrailerrentals.com'),
 
-  // ── SMS — Twilio (Phase 8) ──────────────────────────────────────────
+  // ── SMS — Twilio (Phase 8 / Session 3) ──────────────────────────────
   // Optional: when unset, SMS sends are skipped (logged). Uses the Twilio REST
-  // API directly (no SDK dependency).
+  // API directly (no SDK dependency). The "from" number accepts either
+  // TWILIO_PHONE_NUMBER (preferred) or TWILIO_FROM_NUMBER.
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
-  twilioFromNumber: process.env.TWILIO_FROM_NUMBER || '',
+  twilioFromNumber: process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_FROM_NUMBER || '',
+  // The owner's personal cell for SMS alerts (always texted on new bookings, in
+  // addition to any operator-account phone numbers).
+  operatorPhone: process.env.OPERATOR_PHONE || '',
 
   // ── Monitoring — Sentry (Phase 9) ───────────────────────────────────
   // Optional: when unset, error reporting is a no-op (errors still log to the

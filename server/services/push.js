@@ -55,6 +55,33 @@ async function sendToSubscription(subscription, payload) {
   }
 }
 
+// Send a push to one specific account's stored subscription. Loads the
+// subscription, sends, and prunes it if the push service says it's gone.
+// Never throws. data is merged into the payload (e.g. { url, tag }).
+async function sendPush(userId, title, body, data) {
+  if (!configured) {
+    console.log(`[push] VAPID not configured — skipping push to ${userId}: "${title}"`);
+    return { skipped: true };
+  }
+  let row;
+  try {
+    const res = await query('SELECT push_subscription FROM admin_users WHERE id = $1', [userId]);
+    row = res.rows[0];
+  } catch (err) {
+    console.error('[push] could not load subscription:', err.message);
+    return { error: err.message };
+  }
+  if (!row || !row.push_subscription) return { skipped: true, reason: 'no_subscription' };
+
+  const sub = typeof row.push_subscription === 'string'
+    ? JSON.parse(row.push_subscription) : row.push_subscription;
+  const result = await sendToSubscription(sub, { title, body, ...(data || {}) });
+  if (result.expired) {
+    await pool.query('UPDATE admin_users SET push_subscription = NULL WHERE id = $1', [userId]).catch(() => {});
+  }
+  return result;
+}
+
 // Fan out a notification to every opted-in operator with a stored subscription.
 // Prunes subscriptions the push service reports as gone. Never throws.
 async function sendToOperators(payload) {
@@ -93,5 +120,5 @@ async function sendToOperators(payload) {
 
 module.exports = {
   isConfigured, getPublicKey, saveSubscription, clearSubscription,
-  sendToSubscription, sendToOperators,
+  sendToSubscription, sendToOperators, sendPush,
 };

@@ -45,30 +45,34 @@ async function sendSms(to, body) {
   }
 }
 
-// Text every opted-in operator who has a phone number on file. Never throws.
+// Text the owner's OPERATOR_PHONE (if set) plus every opted-in operator account
+// with a phone on file, de-duplicated. Never throws.
 async function notifyOperators(body) {
   if (!isConfigured()) {
     console.log(`[sms] Twilio not configured — skipping operator SMS: ${body}`);
     return { skipped: true, sent: 0 };
   }
-  let recipients;
+
+  const numbers = new Set();
+  if (config.operatorPhone) numbers.add(config.operatorPhone.trim());
   try {
     const { rows } = await query(
       `SELECT phone FROM admin_users
-        WHERE notify_via_sms = true AND phone IS NOT NULL AND phone <> ''`
+        WHERE notify_via_sms = true AND active = true
+          AND phone IS NOT NULL AND phone <> ''`
     );
-    recipients = rows;
+    for (const r of rows) numbers.add(r.phone.trim());
   } catch (err) {
     console.error('[sms] could not load operators:', err.message);
-    return { sent: 0, error: err.message };
+    // Still try the OPERATOR_PHONE fallback if we have it.
   }
 
   let sent = 0;
-  for (const r of recipients) {
-    const result = await sendSms(r.phone, body);
+  for (const to of numbers) {
+    const result = await sendSms(to, body);
     if (result.sid) sent++;
   }
   return { sent };
 }
 
-module.exports = { isConfigured, sendSms, notifyOperators };
+module.exports = { isConfigured, sendSms, sendSMS: sendSms, notifyOperators };
