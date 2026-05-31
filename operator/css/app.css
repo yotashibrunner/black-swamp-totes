@@ -410,6 +410,25 @@ input:focus-visible {
 .date-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 .day-label { margin: -4px 2px 0; font-weight: 600; }
 
+/* ── Accounts ───────────────────────────────────────────────────────── */
+.badge-role-admin { background: rgba(61, 163, 93, 0.20); color: #6fd58c; }
+.badge-role-operator { background: rgba(154, 164, 182, 0.18); color: var(--muted); }
+
+.account-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.account-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.account-open {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  text-align: left; background: transparent; border: 0; padding: 12px 14px;
+  color: var(--text); cursor: pointer;
+}
+.account-open:active { background: var(--surface-2); }
+.account-meta { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.account-name { font-weight: 600; }
+.account-sub { font-size: 0.82rem; }
+.account-tail { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+
+.attribution { margin: 8px 0 0; font-size: 0.85rem; }
+
 /* ── Calendar ───────────────────────────────────────────────────────── */
 .cal-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; }
 .cal-bar .step { min-width: 44px; font-size: 1.3rem; padding: 6px 12px; }

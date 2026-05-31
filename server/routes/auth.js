@@ -31,7 +31,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     }
 
     const { rows } = await db.query(
-      'SELECT id, email, name, role, password_hash FROM admin_users WHERE email = $1',
+      'SELECT id, email, name, role, password_hash, active FROM admin_users WHERE email = $1',
       [email]
     );
     const user = rows[0];
@@ -43,6 +43,9 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 
     if (!user || !ok) {
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
+    if (user.active === false) {
+      return res.status(403).json({ error: 'This account has been deactivated.' });
     }
 
     await db.query('UPDATE admin_users SET last_login_at = NOW() WHERE id = $1', [user.id]);
@@ -76,12 +79,15 @@ router.post('/refresh', async (req, res, next) => {
     // Confirm the user still exists (could have been deleted/deactivated since
     // the refresh token was issued).
     const { rows } = await db.query(
-      'SELECT id, email, name, role FROM admin_users WHERE id = $1',
+      'SELECT id, email, name, role, active FROM admin_users WHERE id = $1',
       [payload.sub]
     );
     const user = rows[0];
     if (!user) {
       return res.status(401).json({ error: 'Account no longer exists' });
+    }
+    if (user.active === false) {
+      return res.status(403).json({ error: 'This account has been deactivated.' });
     }
 
     const tokens = issueTokens(user);

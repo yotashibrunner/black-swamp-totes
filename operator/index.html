@@ -75,7 +75,7 @@
           </span>
           <span class="nav-chevron" aria-hidden="true">›</span>
         </button>
-        <button type="button" class="nav-item" data-nav="calendar">
+        <button type="button" class="nav-item" data-nav="calendar" data-admin hidden>
           <span class="nav-icon" aria-hidden="true">🗓️</span>
           <span class="nav-text">
             <span class="nav-label">Calendar</span>
@@ -83,11 +83,19 @@
           </span>
           <span class="nav-chevron" aria-hidden="true">›</span>
         </button>
-        <button type="button" class="nav-item" data-nav="inventory">
+        <button type="button" class="nav-item" data-nav="inventory" data-admin hidden>
           <span class="nav-icon" aria-hidden="true">🚚</span>
           <span class="nav-text">
             <span class="nav-label">Inventory</span>
             <span class="nav-sub muted">Trailers, status &amp; pricing</span>
+          </span>
+          <span class="nav-chevron" aria-hidden="true">›</span>
+        </button>
+        <button type="button" class="nav-item" data-nav="accounts" data-admin hidden>
+          <span class="nav-icon" aria-hidden="true">👥</span>
+          <span class="nav-text">
+            <span class="nav-label">Accounts</span>
+            <span class="nav-sub muted">Operators &amp; admins</span>
           </span>
           <span class="nav-chevron" aria-hidden="true">›</span>
         </button>
@@ -200,6 +208,7 @@
           <button type="button" class="btn btn-primary" data-pickup hidden>Mark Picked Up</button>
           <button type="button" class="btn btn-primary" data-return hidden>Mark Returned</button>
           <p class="muted done-note" data-done hidden></p>
+          <p class="muted attribution" data-attribution hidden></p>
         </section>
       </div>
     </main>
@@ -399,6 +408,89 @@
       </span>
       <button type="button" class="btn btn-ghost blackout-del" data-del>Remove</button>
     </li>
+  </template>
+
+  <!-- ── Accounts (admin) ───────────────────────────────────────────── -->
+  <template id="tpl-accounts">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
+      <span class="topbar-title">Accounts</span>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="screen content">
+      <button type="button" class="btn btn-primary" data-add>+ Add Operator</button>
+      <p class="empty" data-loading>Loading…</p>
+      <p class="error" data-error hidden></p>
+      <ul class="account-list" data-list hidden></ul>
+    </main>
+  </template>
+
+  <!-- A single account row. -->
+  <template id="tpl-account-row">
+    <li class="account-row">
+      <button type="button" class="account-open" data-open>
+        <span class="account-meta">
+          <span class="account-name" data-name></span>
+          <span class="account-sub muted" data-contact></span>
+          <span class="account-sub muted" data-login></span>
+        </span>
+        <span class="account-tail">
+          <span class="badge" data-role></span>
+          <span class="badge" data-active></span>
+        </span>
+      </button>
+    </li>
+  </template>
+
+  <!-- ── Account create / edit form (admin) ─────────────────────────── -->
+  <template id="tpl-account-form">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
+      <span class="topbar-title" data-title>Account</span>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="screen content">
+      <form class="card detail-form" data-form novalidate>
+        <h2 data-formtitle>New Operator</h2>
+        <div class="fields">
+          <div class="field">
+            <label for="ac-name">Name</label>
+            <input id="ac-name" type="text" data-name autocomplete="off" />
+          </div>
+          <div class="field" data-email-field>
+            <label for="ac-email">Email</label>
+            <input id="ac-email" type="email" data-email inputmode="email" autocomplete="off" autocapitalize="off" />
+          </div>
+          <div class="field">
+            <label for="ac-phone">Phone</label>
+            <input id="ac-phone" type="tel" data-phone inputmode="tel" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="ac-role">Role</label>
+            <select id="ac-role" data-role>
+              <option value="operator">Operator</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="ac-password" data-pw-label>Temporary password</label>
+            <input id="ac-password" type="text" data-password autocomplete="off" placeholder="At least 8 characters" />
+            <p class="muted" data-pw-hint hidden>Leave blank to keep the current password.</p>
+          </div>
+        </div>
+        <p class="error" data-error hidden></p>
+        <p class="saved muted" data-saved hidden>Saved.</p>
+        <button type="submit" class="btn btn-primary" data-save>Create operator</button>
+      </form>
+
+      <section class="card" data-danger hidden>
+        <h2>Danger zone</h2>
+        <p class="muted" data-danger-note></p>
+        <button type="button" class="btn btn-toggle btn-danger" data-deactivate>Deactivate account</button>
+      </section>
+    </main>
   </template>
 
   <script src="/operator/js/api.js"></script>

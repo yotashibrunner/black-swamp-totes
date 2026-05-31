@@ -98,6 +98,17 @@
   function parseUTC(isoDate) { return new Date(`${isoDate}T00:00:00Z`); }
   function ymd(d) { return d.toISOString().slice(0, 10); }
 
+  // Date + time for action attribution (UTC wall-clock, matching how times are
+  // stored/shown elsewhere).
+  function fmtDateTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC',
+    });
+  }
+
   function fmtMonthYear(d) {
     return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   }
@@ -267,6 +278,12 @@
     root.querySelector('[data-nav="inventory"]').addEventListener('click', () => renderInventory());
     root.querySelector('[data-nav="schedule"]').addEventListener('click', () => renderSchedule());
     root.querySelector('[data-nav="calendar"]').addEventListener('click', () => renderCalendar());
+    root.querySelector('[data-nav="accounts"]').addEventListener('click', () => renderAccounts());
+
+    // Admin-only nav items (inventory, calendar, accounts) are hidden for
+    // operators, who keep the daily workflow (dashboard, schedule, detail).
+    const isAdmin = !!(api.auth.user && api.auth.user.role === 'admin');
+    root.querySelectorAll('[data-admin]').forEach((el) => { el.hidden = !isAdmin; });
 
     setupNotifications();
 
@@ -398,6 +415,19 @@
       returnBtn.textContent = isDelivery ? 'Mark Retrieved' : 'Mark Returned';
       pickupBtn.hidden = !canPickup;
       returnBtn.hidden = !canReturn;
+      // Attribution: who made the most recent status change, and when.
+      const attrEl = root.querySelector('[data-attribution]');
+      const who = booking.managed_by_name;
+      if (who && booking.status === 'out' && booking.picked_up_at) {
+        attrEl.textContent = `Marked ${isDelivery ? 'delivered' : 'picked up'} by ${who} at ${fmtDateTime(booking.picked_up_at)}`;
+        attrEl.hidden = false;
+      } else if (who && booking.status === 'returned' && booking.returned_at) {
+        attrEl.textContent = `Marked ${isDelivery ? 'retrieved' : 'returned'} by ${who} at ${fmtDateTime(booking.returned_at)}`;
+        attrEl.hidden = false;
+      } else {
+        attrEl.hidden = true;
+      }
+
       if (booking.status === 'returned') {
         doneEl.hidden = false;
         doneEl.textContent = isDelivery
@@ -1118,6 +1148,161 @@
     testBtn.addEventListener('click', () => run(testBtn, 'Sending…', () => push.test()));
 
     paint();
+  }
+
+  // ── Accounts (admin) ─────────────────────────────────────────────────────
+  function roleBadge(el, role) {
+    el.textContent = role === 'admin' ? 'Admin' : 'Operator';
+    el.className = `badge ${role === 'admin' ? 'badge-role-admin' : 'badge-role-operator'}`;
+  }
+  function activeBadge(el, active) {
+    el.textContent = active ? 'Active' : 'Inactive';
+    el.className = `badge ${active ? 'badge-ok' : 'badge-oos'}`;
+  }
+
+  async function renderAccounts() {
+    mount('tpl-accounts');
+    root.querySelector('[data-back]').addEventListener('click', () => renderDashboard());
+    root.querySelector('[data-add]').addEventListener('click', () => renderAccountForm(null));
+
+    const loadingEl = root.querySelector('[data-loading]');
+    const errEl = root.querySelector('[data-error]');
+    const listEl = root.querySelector('[data-list]');
+
+    let accounts;
+    try {
+      const data = await api.apiFetch('/api/operator/accounts');
+      accounts = data.accounts || [];
+    } catch (err) {
+      if (handleAuth(err)) return;
+      loadingEl.hidden = true;
+      errEl.textContent = err.message || 'Could not load accounts.';
+      errEl.hidden = false;
+      return;
+    }
+
+    loadingEl.hidden = true;
+    const tpl = document.getElementById('tpl-account-row');
+    const meId = api.auth.user && api.auth.user.id;
+    for (const a of accounts) {
+      const node = tpl.content.cloneNode(true);
+      node.querySelector('[data-name]').textContent = a.name + (a.id === meId ? ' (you)' : '');
+      node.querySelector('[data-contact]').textContent = [a.email, a.phone].filter(Boolean).join(' · ');
+      node.querySelector('[data-login]').textContent = a.last_login_at
+        ? `Last login ${fmtDateTime(a.last_login_at)}` : 'Never logged in';
+      roleBadge(node.querySelector('[data-role]'), a.role);
+      activeBadge(node.querySelector('[data-active]'), a.active);
+      node.querySelector('[data-open]').addEventListener('click', () => renderAccountForm(a));
+      listEl.appendChild(node);
+    }
+    listEl.hidden = false;
+  }
+
+  // account = null → create; otherwise edit that account.
+  function renderAccountForm(account) {
+    mount('tpl-account-form');
+    const isEdit = !!account;
+    const meId = api.auth.user && api.auth.user.id;
+    const isSelf = isEdit && account.id === meId;
+
+    root.querySelector('[data-back]').addEventListener('click', () => renderAccounts());
+
+    const nameEl = root.querySelector('[data-name]');
+    const emailEl = root.querySelector('[data-email]');
+    const phoneEl = root.querySelector('[data-phone]');
+    const roleEl = root.querySelector('[data-role]');
+    const pwEl = root.querySelector('[data-password]');
+    const errEl = root.querySelector('[data-error]');
+    const savedEl = root.querySelector('[data-saved]');
+    const saveBtn = root.querySelector('[data-save]');
+
+    root.querySelector('[data-title]').textContent = isEdit ? 'Edit account' : 'New operator';
+    root.querySelector('[data-formtitle]').textContent = isEdit ? account.name : 'New Operator';
+    saveBtn.textContent = isEdit ? 'Save changes' : 'Create operator';
+
+    if (isEdit) {
+      nameEl.value = account.name || '';
+      phoneEl.value = account.phone || '';
+      roleEl.value = account.role || 'operator';
+      root.querySelector('[data-email-field]').hidden = true; // email is fixed after creation
+      root.querySelector('[data-pw-label]').textContent = 'Reset password';
+      root.querySelector('[data-pw-hint]').hidden = false;
+      pwEl.placeholder = 'Leave blank to keep current';
+      if (isSelf) roleEl.disabled = true; // can't change your own role
+    }
+
+    // Danger zone (deactivate) — only when editing someone else who is active.
+    const dangerEl = root.querySelector('[data-danger]');
+    if (isEdit && !isSelf && account.active) {
+      dangerEl.hidden = false;
+      root.querySelector('[data-danger-note]').textContent =
+        'Deactivating blocks this person from logging in. Their history is kept.';
+      root.querySelector('[data-deactivate]').addEventListener('click', async () => {
+        if (!window.confirm(`Deactivate ${account.name}? They won't be able to log in.`)) return;
+        try {
+          await api.apiFetch(`/api/operator/accounts/${account.id}`, { method: 'DELETE' });
+          renderAccounts();
+        } catch (err) {
+          if (handleAuth(err)) return;
+          errEl.textContent = err.message || 'Could not deactivate.';
+          errEl.hidden = false;
+        }
+      });
+    } else if (isEdit && !isSelf && !account.active) {
+      // Reactivate option for an inactive account.
+      dangerEl.hidden = false;
+      root.querySelector('[data-danger-note]').textContent = 'This account is deactivated.';
+      const btn = root.querySelector('[data-deactivate]');
+      btn.textContent = 'Reactivate account';
+      btn.classList.remove('btn-danger');
+      btn.addEventListener('click', async () => {
+        try {
+          await api.apiFetch(`/api/operator/accounts/${account.id}`, {
+            method: 'PATCH', body: JSON.stringify({ active: true }),
+          });
+          renderAccounts();
+        } catch (err) {
+          if (handleAuth(err)) return;
+          errEl.textContent = err.message || 'Could not reactivate.';
+          errEl.hidden = false;
+        }
+      });
+    }
+
+    root.querySelector('[data-form]').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errEl.hidden = true; savedEl.hidden = true;
+      const name = nameEl.value.trim();
+      const phone = phoneEl.value.trim();
+      const role = roleEl.value;
+      const password = pwEl.value;
+      if (!name) { errEl.textContent = 'Name is required.'; errEl.hidden = false; return; }
+      if (!isEdit && password.length < 8) { errEl.textContent = 'Temporary password must be at least 8 characters.'; errEl.hidden = false; return; }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = isEdit ? 'Saving…' : 'Creating…';
+      try {
+        if (isEdit) {
+          const body = { name, phone, password: password || undefined };
+          if (!isSelf) body.role = role;
+          await api.apiFetch(`/api/operator/accounts/${account.id}`, {
+            method: 'PATCH', body: JSON.stringify(body),
+          });
+        } else {
+          await api.apiFetch('/api/operator/accounts', {
+            method: 'POST',
+            body: JSON.stringify({ name, email: emailEl.value.trim(), phone, role, password }),
+          });
+        }
+        renderAccounts();
+      } catch (err) {
+        if (handleAuth(err)) return;
+        errEl.textContent = err.message || 'Could not save the account.';
+        errEl.hidden = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? 'Save changes' : 'Create operator';
+      }
+    });
   }
 
   // ── Boot ────────────────────────────────────────────────────────────────

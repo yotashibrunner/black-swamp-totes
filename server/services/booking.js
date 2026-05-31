@@ -182,10 +182,12 @@ async function fetchBooking(where, value) {
     `SELECT b.*,
             t.name AS trailer_name, t.type AS trailer_type, t.slug AS trailer_slug,
             t.size_label, t.hitch_requirement, t.plug_requirement, t.per_tire_cents,
-            c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone
+            c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone,
+            m.name AS managed_by_name
        FROM bookings b
        JOIN trailers t ON t.id = b.trailer_id
        JOIN customers c ON c.id = b.customer_id
+       LEFT JOIN admin_users m ON m.id = b.managed_by
       WHERE ${where} = $1`,
     [value]
   );
@@ -423,6 +425,9 @@ async function updateBooking(id, patch, adminUserId) {
       values.push(patch.status);
       sets.push(`status = $${values.length}`);
       sets.push(`${transition.stamp} = NOW()`);
+      // Attribute the status change to the operator who made it.
+      values.push(adminUserId || null);
+      sets.push(`managed_by = $${values.length}`);
     }
 
     if (hasNotes) {
@@ -450,8 +455,8 @@ async function updateBooking(id, patch, adminUserId) {
     }
 
     await client.query(
-      `INSERT INTO audit_log (admin_user_id, action, entity_type, entity_id, details)
-       VALUES ($1, 'booking.update', 'booking', $2, $3)`,
+      `INSERT INTO audit_log (admin_user_id, action_by, action, entity_type, entity_id, details)
+       VALUES ($1, $1, 'booking.update', 'booking', $2, $3)`,
       [adminUserId || null, id, JSON.stringify({
         status: hasStatus ? patch.status : undefined,
         notes_changed: hasNotes || undefined,

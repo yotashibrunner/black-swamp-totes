@@ -33,4 +33,16 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth };
+// Gate for admin-only routes. Must run after requireAuth (which sets req.user).
+// Operators get a clean 403 rather than leaking the resource.
+function requireAdmin(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required', code: 'forbidden' });
+  }
+  return next();
+}
+
+module.exports = { requireAuth, requireAdmin };

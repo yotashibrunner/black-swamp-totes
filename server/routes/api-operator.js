@@ -27,6 +27,8 @@ const bookingSvc = require('../services/booking');
 const blackoutSvc = require('../services/blackouts');
 const pushSvc = require('../services/push');
 const { OCCUPYING_STATUSES } = require('../services/availability');
+const accountsSvc = require('../services/accounts');
+const { requireAdmin } = require('../middleware/auth');
 const { formatCents } = require('../utils/money');
 const { todayUTC, addDays, parseDateOnly } = require('../utils/date');
 
@@ -186,7 +188,7 @@ router.patch('/bookings/:id', async (req, res, next) => {
 // blackout overlapping the range, for the month/week calendar. Defaults to a
 // six-week window from today; range width is capped to keep queries bounded.
 const MAX_CALENDAR_DAYS = 366;
-router.get('/calendar', async (req, res, next) => {
+router.get('/calendar', requireAdmin, async (req, res, next) => {
   try {
     const from = parseDateOnly(req.query.from) || todayUTC();
     let to = parseDateOnly(req.query.to) || addDays(from, 42);
@@ -212,7 +214,7 @@ router.get('/calendar', async (req, res, next) => {
 });
 
 // GET /api/operator/blackouts — all blackouts, soonest first.
-router.get('/blackouts', async (req, res, next) => {
+router.get('/blackouts', requireAdmin, async (req, res, next) => {
   try {
     res.json({ blackouts: await blackoutSvc.listBlackouts() });
   } catch (err) {
@@ -223,7 +225,7 @@ router.get('/blackouts', async (req, res, next) => {
 // POST /api/operator/blackouts — block a date range. Body:
 // { trailer_id?, start: 'YYYY-MM-DD', end: 'YYYY-MM-DD', reason? }.
 // Omit trailer_id (or send null) to block the entire fleet.
-router.post('/blackouts', async (req, res, next) => {
+router.post('/blackouts', requireAdmin, async (req, res, next) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const blackout = await blackoutSvc.createBlackout(body, req.user.id);
@@ -235,7 +237,7 @@ router.post('/blackouts', async (req, res, next) => {
 });
 
 // DELETE /api/operator/blackouts/:id — unblock.
-router.delete('/blackouts/:id', async (req, res, next) => {
+router.delete('/blackouts/:id', requireAdmin, async (req, res, next) => {
   try {
     const removed = await blackoutSvc.deleteBlackout(req.params.id, req.user.id);
     if (!removed) return res.status(404).json({ error: 'Blackout not found' });
@@ -307,9 +309,72 @@ router.post('/push/test', async (req, res, next) => {
   }
 });
 
+// ── Operator accounts (admin only) ─────────────────────────────────────
+// GET /api/operator/accounts — list all accounts.
+router.get('/accounts', requireAdmin, async (req, res, next) => {
+  try {
+    res.json({ accounts: await accountsSvc.listAccounts() });
+  } catch (err) { next(err); }
+});
+
+// POST /api/operator/accounts — create an operator/admin.
+router.post('/accounts', requireAdmin, async (req, res, next) => {
+  try {
+    const account = await accountsSvc.createAccount(req.body || {}, req.user.id);
+    res.status(201).json({ account });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// GET /api/operator/accounts/:id — one account.
+router.get('/accounts/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const account = await accountsSvc.getAccount(req.params.id);
+    if (!account) return res.status(404).json({ error: 'Account not found' });
+    res.json({ account });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// PATCH /api/operator/accounts/:id — update name/phone/role/active, reset password.
+router.patch('/accounts/:id', requireAdmin, async (req, res, next) => {
+  try {
+    // An admin can't lock themselves out by demoting or deactivating their own
+    // account.
+    if (req.params.id === req.user.id) {
+      const b = req.body || {};
+      if (b.active === false) return res.status(400).json({ error: 'You cannot deactivate your own account.' });
+      if (b.role && b.role !== 'admin') return res.status(400).json({ error: 'You cannot change your own role.' });
+    }
+    const account = await accountsSvc.updateAccount(req.params.id, req.body || {}, req.user.id);
+    res.json({ account });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// DELETE /api/operator/accounts/:id — deactivate (soft delete).
+router.delete('/accounts/:id', requireAdmin, async (req, res, next) => {
+  try {
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ error: 'You cannot deactivate your own account.' });
+    }
+    const account = await accountsSvc.deactivateAccount(req.params.id, req.user.id);
+    res.json({ account });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
 // GET /api/operator/trailers — the full fleet, ordered for display, with live
 // unit counts: out (currently rented), on_hold, and available.
-router.get('/trailers', async (req, res, next) => {
+router.get('/trailers', requireAdmin, async (req, res, next) => {
   try {
     const { rows } = await query(`${SELECT_TRAILER} ORDER BY display_order, name`);
 
@@ -339,7 +404,7 @@ router.get('/trailers', async (req, res, next) => {
 // PATCH /api/operator/trailers/:id — partial update of one trailer.
 // Body may contain any subset of UPDATABLE fields. Unknown fields are
 // rejected so typos don't silently no-op. Returns the updated row.
-router.patch('/trailers/:id', async (req, res, next) => {
+router.patch('/trailers/:id', requireAdmin, async (req, res, next) => {
   const { id } = req.params;
   if (!UUID_RE.test(id)) {
     return res.status(400).json({ error: 'Invalid trailer id' });
