@@ -99,6 +99,14 @@
           </span>
           <span class="nav-chevron" aria-hidden="true">›</span>
         </button>
+        <button type="button" class="nav-item" data-nav="diagnostics" data-admin hidden>
+          <span class="nav-icon" aria-hidden="true">🩺</span>
+          <span class="nav-text">
+            <span class="nav-label">Diagnostics</span>
+            <span class="nav-sub muted">Integrations &amp; test email</span>
+          </span>
+          <span class="nav-chevron" aria-hidden="true">›</span>
+        </button>
       </nav>
 
       <p class="error" data-error hidden></p>
@@ -489,6 +497,36 @@
         <h2>Danger zone</h2>
         <p class="muted" data-danger-note></p>
         <button type="button" class="btn btn-toggle btn-danger" data-deactivate>Deactivate account</button>
+      </section>
+    </main>
+  </template>
+
+  <!-- ── Diagnostics (admin) ────────────────────────────────────────── -->
+  <template id="tpl-diagnostics">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
+      <span class="topbar-title">Diagnostics</span>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="screen content">
+      <section class="card">
+        <h2>Integrations</h2>
+        <p class="empty" data-loading>Loading…</p>
+        <p class="error" data-error hidden></p>
+        <dl class="kv diag-list" data-integrations hidden></dl>
+      </section>
+
+      <section class="card">
+        <h2>Send test email</h2>
+        <p class="muted">Sends a one-off email so you can confirm Resend works (and the sending domain is verified).</p>
+        <div class="field">
+          <label for="te-email">To</label>
+          <input id="te-email" type="email" data-email inputmode="email" autocomplete="off" />
+        </div>
+        <p class="error" data-test-error hidden></p>
+        <p class="saved muted" data-test-ok hidden></p>
+        <button type="button" class="btn btn-primary" data-send>Send test email</button>
       </section>
     </main>
   </template>

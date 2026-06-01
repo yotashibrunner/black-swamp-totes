@@ -95,4 +95,29 @@ async function sendBookingReminder(booking, kind, baseUrl) {
   });
 }
 
-module.exports = { isConfigured, sendBookingConfirmation, sendBookingReminder };
+// Send a simple test email and surface the real outcome (including Resend's
+// error, e.g. an unverified sending domain) so an admin can diagnose delivery.
+async function sendTest(to) {
+  const resend = getClient();
+  if (!resend) return { skipped: true, reason: 'RESEND_API_KEY is not set on the server.' };
+  if (!to) return { error: 'No recipient email.' };
+  try {
+    const { data, error } = await resend.emails.send({
+      from: config.fromEmail,
+      to,
+      subject: 'Glass City — test email ✅',
+      html:
+        '<div style="font-family:Arial,sans-serif;color:#0a0d0a;max-width:520px">'
+        + '<h2 style="color:#1faa30">Email is working</h2>'
+        + '<p>This is a test from your Glass City operator app. If it reached you, '
+        + 'booking confirmations will send too.</p>'
+        + `<p style="color:#888;font-size:12px">Sent from ${config.fromEmail}</p></div>`,
+    });
+    if (error) return { error: error.message || (typeof error === 'string' ? error : JSON.stringify(error)) };
+    return { id: data && data.id };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+module.exports = { isConfigured, sendBookingConfirmation, sendBookingReminder, sendTest };

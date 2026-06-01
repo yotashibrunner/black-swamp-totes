@@ -279,6 +279,7 @@
     root.querySelector('[data-nav="schedule"]').addEventListener('click', () => renderSchedule());
     root.querySelector('[data-nav="calendar"]').addEventListener('click', () => renderCalendar());
     root.querySelector('[data-nav="accounts"]').addEventListener('click', () => renderAccounts());
+    root.querySelector('[data-nav="diagnostics"]').addEventListener('click', () => renderDiagnostics());
 
     // Admin-only nav items (inventory, calendar, accounts) are hidden for
     // operators, who keep the daily workflow (dashboard, schedule, detail).
@@ -1301,6 +1302,90 @@
         errEl.hidden = false;
         saveBtn.disabled = false;
         saveBtn.textContent = isEdit ? 'Save changes' : 'Create operator';
+      }
+    });
+  }
+
+  // ── Diagnostics (admin): integration status + test email ─────────────────
+  async function renderDiagnostics() {
+    mount('tpl-diagnostics');
+    root.querySelector('[data-back]').addEventListener('click', () => renderDashboard());
+
+    const loadingEl = root.querySelector('[data-loading]');
+    const errEl = root.querySelector('[data-error]');
+    const listEl = root.querySelector('[data-integrations]');
+    const emailEl = root.querySelector('[data-email]');
+    const sendBtn = root.querySelector('[data-send]');
+    const testErr = root.querySelector('[data-test-error]');
+    const testOk = root.querySelector('[data-test-ok]');
+
+    if (api.auth.user && api.auth.user.email) emailEl.value = api.auth.user.email;
+
+    // Labels for the channels that matter, in display order.
+    const CHANNELS = [
+      ['stripe_payments', 'Stripe payments'],
+      ['stripe_webhook_secret', 'Stripe webhook secret'],
+      ['email_resend', 'Email (Resend)'],
+      ['web_push', 'Web push (VAPID)'],
+      ['sms_twilio', 'SMS (Twilio)'],
+      ['operator_phone_set', 'Operator phone'],
+    ];
+
+    try {
+      const data = await api.apiFetch('/api/operator/integrations');
+      loadingEl.hidden = true;
+      listEl.replaceChildren();
+      for (const [key, label] of CHANNELS) {
+        const row = document.createElement('div');
+        const dt = document.createElement('dt');
+        dt.textContent = label;
+        const dd = document.createElement('dd');
+        const badge = document.createElement('span');
+        badge.className = `badge ${data[key] ? 'badge-ok' : 'badge-oos'}`;
+        badge.textContent = data[key] ? 'On' : 'Off';
+        dd.appendChild(badge);
+        row.append(dt, dd);
+        listEl.appendChild(row);
+      }
+      // Extra context rows.
+      for (const [label, val] of [['From email', data.from_email], ['Base URL', data.base_url]]) {
+        const row = document.createElement('div');
+        const dt = document.createElement('dt'); dt.textContent = label;
+        const dd = document.createElement('dd'); dd.textContent = val || '—';
+        row.append(dt, dd);
+        listEl.appendChild(row);
+      }
+      listEl.hidden = false;
+    } catch (err) {
+      if (handleAuth(err)) return;
+      loadingEl.hidden = true;
+      errEl.textContent = err.message || 'Could not load integration status.';
+      errEl.hidden = false;
+    }
+
+    sendBtn.addEventListener('click', async () => {
+      testErr.hidden = true; testOk.hidden = true;
+      const to = emailEl.value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+        testErr.textContent = 'Enter a valid email address.';
+        testErr.hidden = false;
+        return;
+      }
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Sending…';
+      try {
+        await api.apiFetch('/api/operator/test-email', {
+          method: 'POST', body: JSON.stringify({ email: to }),
+        });
+        testOk.textContent = `Sent to ${to}. Check the inbox (and spam).`;
+        testOk.hidden = false;
+      } catch (err) {
+        if (handleAuth(err)) return;
+        testErr.textContent = err.message || 'Could not send the test email.';
+        testErr.hidden = false;
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send test email';
       }
     });
   }

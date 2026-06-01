@@ -123,6 +123,26 @@ router.get('/integrations', requireAdmin, (req, res) => {
   });
 });
 
+// POST /api/operator/test-email — send a test email (admin). Defaults to the
+// logged-in admin's address. Surfaces the real error (e.g. unverified domain).
+router.post('/test-email', requireAdmin, async (req, res, next) => {
+  try {
+    const to = String((req.body && req.body.email) || req.user.email || '').trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+      return res.status(400).json({ error: 'A valid recipient email is required.' });
+    }
+    if (!emailSvc.isConfigured()) {
+      return res.status(503).json({ error: 'Email (Resend) is not configured. Set RESEND_API_KEY in Railway.' });
+    }
+    const result = await emailSvc.sendTest(to);
+    if (result.skipped) return res.status(503).json({ error: result.reason });
+    if (result.error) return res.status(502).json({ error: result.error });
+    res.json({ ok: true, id: result.id, to });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Attach formatted dollar strings + a ready-to-use contract PDF link so the PWA
 // doesn't reimplement money math or URL building. contract_url is only set once
 // the agreement is signed (the public PDF route 409s otherwise).

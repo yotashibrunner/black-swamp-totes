@@ -429,6 +429,11 @@ input:focus-visible {
 
 .attribution { margin: 8px 0 0; font-size: 0.85rem; }
 
+/* Diagnostics: label on the left, status/value on the right. */
+.diag-list > div { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+.diag-list dt { color: var(--text); font-size: 0.95rem; }
+.diag-list dd { text-align: right; }
+
 /* ── Calendar ───────────────────────────────────────────────────────── */
 .cal-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; }
 .cal-bar .step { min-width: 44px; font-size: 1.3rem; padding: 6px 12px; }
