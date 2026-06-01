@@ -1388,6 +1388,44 @@
         sendBtn.textContent = 'Send test email';
       }
     });
+
+    // Generic "send test X" runner: POSTs, shows ok/err, restores the button.
+    function wireTest(btn, okEl, errEl2, label, bodyFn, path, okMsg) {
+      btn.addEventListener('click', async () => {
+        okEl.hidden = true; errEl2.hidden = true;
+        const body = bodyFn ? bodyFn() : null;
+        if (body === false) return; // validation handled in bodyFn
+        btn.disabled = true; btn.textContent = 'Sending…';
+        try {
+          await api.apiFetch(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
+          okEl.textContent = okMsg;
+          okEl.hidden = false;
+        } catch (err) {
+          if (handleAuth(err)) return;
+          errEl2.textContent = err.message || 'Could not send.';
+          errEl2.hidden = false;
+        } finally {
+          btn.disabled = false; btn.textContent = label;
+        }
+      });
+    }
+
+    wireTest(
+      root.querySelector('[data-send-push]'),
+      root.querySelector('[data-push-ok]'), root.querySelector('[data-push-error]'),
+      'Send test push', null, '/api/operator/push/test',
+      'Sent — check this device for the notification.'
+    );
+
+    const phoneEl = root.querySelector('[data-phone]');
+    wireTest(
+      root.querySelector('[data-send-sms]'),
+      root.querySelector('[data-sms-ok]'), root.querySelector('[data-sms-error]'),
+      'Send test SMS',
+      () => ({ phone: phoneEl.value.trim() || undefined }),
+      '/api/operator/test-sms',
+      'Sent — check the phone for the text.'
+    );
   }
 
   // ── Boot ────────────────────────────────────────────────────────────────

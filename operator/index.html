@@ -528,6 +528,23 @@
         <p class="saved muted" data-test-ok hidden></p>
         <button type="button" class="btn btn-primary" data-send>Send test email</button>
       </section>
+
+      <section class="card">
+        <h2>Test notifications</h2>
+        <p class="muted">Push goes to <strong>this device</strong> — enable alerts on the Dashboard first.</p>
+        <button type="button" class="btn btn-ghost" data-send-push>Send test push</button>
+        <p class="error" data-push-error hidden></p>
+        <p class="saved muted" data-push-ok hidden></p>
+
+        <div class="field" style="margin-top:16px;">
+          <label for="ts-phone">SMS to</label>
+          <input id="ts-phone" type="tel" data-phone inputmode="tel" autocomplete="off"
+                 placeholder="+14195551234 (blank = OPERATOR_PHONE)" />
+        </div>
+        <button type="button" class="btn btn-ghost" data-send-sms>Send test SMS</button>
+        <p class="error" data-sms-error hidden></p>
+        <p class="saved muted" data-sms-ok hidden></p>
+      </section>
     </main>
   </template>
 

@@ -143,6 +143,27 @@ router.post('/test-email', requireAdmin, async (req, res, next) => {
   }
 });
 
+// POST /api/operator/test-sms — send a test SMS (admin). Defaults to
+// OPERATOR_PHONE. Surfaces Twilio's real error (e.g. unverified trial number).
+router.post('/test-sms', requireAdmin, async (req, res, next) => {
+  try {
+    const to = String((req.body && req.body.phone) || config.operatorPhone || '').trim();
+    if (!to) return res.status(400).json({ error: 'Enter a phone number, or set OPERATOR_PHONE in Railway.' });
+    if (!/^\+?[1-9]\d{6,14}$/.test(to.replace(/[\s()-]/g, ''))) {
+      return res.status(400).json({ error: 'Enter a valid phone number, ideally +1XXXXXXXXXX.' });
+    }
+    if (!smsSvc.isConfigured()) {
+      return res.status(503).json({ error: 'SMS (Twilio) is not configured. Set TWILIO_* in Railway.' });
+    }
+    const result = await smsSvc.sendSMS(to, 'Glass City test SMS ✅ — if you got this, alerts work.');
+    if (result.skipped) return res.status(503).json({ error: 'SMS is not configured.' });
+    if (result.error) return res.status(502).json({ error: result.error });
+    res.json({ ok: true, sid: result.sid, to });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Attach formatted dollar strings + a ready-to-use contract PDF link so the PWA
 // doesn't reimplement money math or URL building. contract_url is only set once
 // the agreement is signed (the public PDF route 409s otherwise).
