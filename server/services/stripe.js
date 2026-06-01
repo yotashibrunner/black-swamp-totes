@@ -54,15 +54,22 @@ async function createCheckoutSession(booking, { successUrl, cancelUrl }) {
     });
   }
 
-  return stripe.checkout.sessions.create({
+  const params = {
     mode: 'payment',
     line_items: lineItems,
+    // Prefill the email if we have it; Stripe Checkout collects one otherwise.
     customer_email: booking.customer_email || undefined,
     client_reference_id: booking.ref_code,
     metadata: { booking_id: booking.id, ref_code: booking.ref_code },
     success_url: successUrl,
     cancel_url: cancelUrl,
-  });
+  };
+  // Ask Stripe to email its own receipt when we already know the address. (In
+  // live mode Stripe sends it; test-mode receipts only appear in the dashboard.)
+  if (booking.customer_email) {
+    params.payment_intent_data = { receipt_email: booking.customer_email };
+  }
+  return stripe.checkout.sessions.create(params);
 }
 
 // Verify + parse a webhook payload. Requires the raw request body.

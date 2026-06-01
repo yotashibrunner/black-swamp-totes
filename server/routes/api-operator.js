@@ -26,6 +26,10 @@ const { pool, query } = require('../db');
 const bookingSvc = require('../services/booking');
 const blackoutSvc = require('../services/blackouts');
 const pushSvc = require('../services/push');
+const stripeSvc = require('../services/stripe');
+const emailSvc = require('../services/email');
+const smsSvc = require('../services/sms');
+const config = require('../config');
 const { OCCUPYING_STATUSES } = require('../services/availability');
 const accountsSvc = require('../services/accounts');
 const { requireAdmin } = require('../middleware/auth');
@@ -101,6 +105,22 @@ const UPDATABLE = {
 // GET /api/operator/me — echo back the authenticated operator.
 router.get('/me', (req, res) => {
   res.json({ user: req.user });
+});
+
+// GET /api/operator/integrations — which outbound integrations are configured
+// (admin only). Booleans only, never secrets — a quick self-diagnosis for "why
+// didn't the email/SMS/push fire?".
+router.get('/integrations', requireAdmin, (req, res) => {
+  res.json({
+    stripe_payments: stripeSvc.isConfigured(),
+    stripe_webhook_secret: !!config.stripeWebhookSecret,
+    email_resend: emailSvc.isConfigured(),
+    from_email: config.fromEmail,
+    web_push: pushSvc.isConfigured(),
+    sms_twilio: smsSvc.isConfigured(),
+    operator_phone_set: !!config.operatorPhone,
+    base_url: config.baseUrl,
+  });
 });
 
 // Attach formatted dollar strings + a ready-to-use contract PDF link so the PWA

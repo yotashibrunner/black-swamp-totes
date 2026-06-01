@@ -43,11 +43,15 @@ function resolveWindow(trailer, input) {
   return { start, end: addDays(end, 1), periodType: 'day', quantity: days };
 }
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
 async function findOrCreateCustomer(client, customer) {
   const name = (customer.name || '').trim();
   const email = (customer.email || '').trim().toLowerCase();
   const phone = (customer.phone || '').trim();
   if (!name || !phone) throw badRequest('Name and phone are required.');
+  // Email is required so the confirmation + receipt always have a destination.
+  if (!EMAIL_RE.test(email)) throw badRequest('A valid email address is required for your confirmation.');
 
   const found = await client.query(
     'SELECT id FROM customers WHERE lower(email) = $1 AND phone = $2 LIMIT 1',
@@ -250,7 +254,10 @@ async function signBooking(id, sig) {
 }
 
 // Mark a booking paid from a Stripe checkout session. Idempotent.
-async function markPaidBySession(sessionId, paymentIntentId, amountCents) {
+// `customerEmail` is the address Stripe collected on its checkout page — we
+// backfill it onto the customer when our own form left it blank, so the
+// confirmation email always has somewhere to go.
+async function markPaidBySession(sessionId, paymentIntentId, amountCents, customerEmail) {
   const { rows } = await pool.query(
     `UPDATE bookings SET
        status = 'paid',
@@ -258,10 +265,20 @@ async function markPaidBySession(sessionId, paymentIntentId, amountCents) {
        stripe_payment_intent_id = COALESCE($3, stripe_payment_intent_id),
        updated_at = NOW()
      WHERE stripe_session_id = $1 AND status <> 'paid'
-     RETURNING id`,
+     RETURNING id, customer_id`,
     [sessionId, amountCents || 0, paymentIntentId || null]
   );
   if (!rows.length) return null; // unknown session or already paid
+
+  const email = (customerEmail || '').trim().toLowerCase();
+  if (email) {
+    // Only fill in when the customer record has no email yet.
+    await pool.query(
+      `UPDATE customers SET email = $2
+        WHERE id = $1 AND (email IS NULL OR email = '')`,
+      [rows[0].customer_id, email]
+    ).catch((e) => console.error('[booking] email backfill failed:', e.message));
+  }
   return getById(rows[0].id);
 }
 

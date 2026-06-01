@@ -54,7 +54,7 @@
           <div class="field-row"><div><label class="fl" for="name">Full name <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label><input type="text" id="name" autocomplete="name" required aria-required="true" /></div></div>
           <div class="field-row two" style="margin-top:12px;">
             <div><label class="fl" for="phone">Phone <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label><input type="text" id="phone" inputmode="tel" autocomplete="tel" required aria-required="true" /></div>
-            <div><label class="fl" for="email">Email</label><input type="text" id="email" inputmode="email" autocomplete="email" /></div>
+            <div><label class="fl" for="email">Email <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label><input type="email" id="email" inputmode="email" autocomplete="email" required aria-required="true" /></div>
           </div>
 
           <div class="step"><label class="fl" for="startTime" style="margin:0;"><%= isDumpster ? 'Requested drop-off time' : 'Requested pickup / delivery time' %></label></div>
@@ -124,7 +124,9 @@
         el('err').textContent = '';
         var name = el('name').value.trim();
         var phone = el('phone').value.trim();
+        var email = el('email').value.trim();
         if (!name || !phone) { el('err').textContent = 'Name and phone are required.'; return; }
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { el('err').textContent = 'A valid email is required — we send your confirmation and receipt there.'; return; }
 
         var ful = fulfillment();
         var addrEl = el('deliveryAddress');

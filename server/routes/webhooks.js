@@ -24,26 +24,43 @@ router.post('/stripe', async (req, res) => {
   }
 
   try {
+    console.log(`[webhook] received ${event.type} (${event.id})`);
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
+      // Stripe always collects an email on its checkout page; prefer that, then
+      // any email we passed. Used to mark paid + backfill the customer record.
+      const stripeEmail =
+        (session.customer_details && session.customer_details.email) || session.customer_email || null;
+
       const booking = await bookingSvc.markPaidBySession(
-        session.id, session.payment_intent, session.amount_total
+        session.id, session.payment_intent, session.amount_total, stripeEmail
       );
-      if (booking) {
-        const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-        try {
-          const pdf = await generatePdf(booking);
-          await emailSvc.sendBookingConfirmation(booking, pdf, baseUrl);
-        } catch (e) {
-          console.error('[webhook] confirmation email failed:', e.message);
+      if (!booking) {
+        console.warn(`[webhook] no pending booking for session ${session.id} (already paid or unknown).`);
+        return res.json({ received: true });
+      }
+
+      const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+      console.log(`[webhook] booking ${booking.ref_code} marked paid; email=${booking.customer_email || '(none)'}`);
+
+      // Confirmation email with the signed-contract PDF (best-effort).
+      try {
+        const pdf = await generatePdf(booking);
+        const result = await emailSvc.sendBookingConfirmation(booking, pdf, baseUrl);
+        if (result && result.skipped) {
+          console.warn(`[webhook] confirmation email skipped for ${booking.ref_code} (${booking.customer_email ? 'email service not configured' : 'no customer email'}).`);
+        } else {
+          console.log(`[webhook] confirmation email sent for ${booking.ref_code}.`);
         }
-        // Alert the operator(s) on push + SMS. Best-effort: notify never throws.
-        try {
-          await notifySvc.notifyNewBooking(booking, baseUrl);
-        } catch (e) {
-          console.error('[webhook] operator notification failed:', e.message);
-        }
-        console.log(`[webhook] booking ${booking.ref_code} marked paid`);
+      } catch (e) {
+        console.error('[webhook] confirmation email failed:', e.message);
+      }
+
+      // Alert the operator(s) on push + SMS. Best-effort: notify never throws.
+      try {
+        await notifySvc.notifyNewBooking(booking, baseUrl);
+      } catch (e) {
+        console.error('[webhook] operator notification failed:', e.message);
       }
     }
     res.json({ received: true });

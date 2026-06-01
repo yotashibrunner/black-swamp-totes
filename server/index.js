@@ -115,6 +115,16 @@ app.use((err, req, res, next) => {
 
 const server = app.listen(config.port, () => {
   console.log(`Glass City Rentals listening on :${config.port} (${config.env})`);
+  // One-line integration readiness check — handy for diagnosing why an
+  // email/SMS/push didn't fire after a deploy.
+  const on = (v) => (v ? 'on' : 'OFF');
+  console.log(
+    '[integrations] '
+    + `stripe=${on(config.stripeSecretKey)} webhook_secret=${on(config.stripeWebhookSecret)} `
+    + `resend=${on(config.resendApiKey)} push=${on(config.vapidPublicKey && config.vapidPrivateKey)} `
+    + `twilio=${on(config.twilioAccountSid && config.twilioAuthToken && config.twilioFromNumber)} `
+    + `operator_phone=${on(config.operatorPhone)}`
+  );
 });
 
 // Graceful shutdown so Railway redeploys don't drop in-flight requests.
