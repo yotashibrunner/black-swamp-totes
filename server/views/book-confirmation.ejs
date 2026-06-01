@@ -39,6 +39,15 @@
           <div class="qrow"><span>Address</span><span><%= booking.delivery_address %></span></div>
           <% } %>
           <div class="qrow"><span><%= booking.trailer_type === 'dumpster' ? 'Drop-off' : 'Pickup' %></span><span><%= new Date(booking.start_at).toLocaleDateString('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }) %></span></div>
+          <%
+            var sd = new Date(booking.start_at);
+            var hasTime = !(sd.getUTCHours() === 0 && sd.getUTCMinutes() === 0);
+            var timeLabel = booking.fulfillment === 'delivery' ? 'Delivery time'
+              : (booking.trailer_type === 'dumpster' ? 'Drop-off time' : 'Pickup time');
+          %>
+          <% if (hasTime) { %>
+          <div class="qrow"><span><%= timeLabel %></span><span><%= sd.toLocaleTimeString('en-US', { timeZone:'UTC', hour:'numeric', minute:'2-digit' }) %></span></div>
+          <% } %>
           <div class="qrow"><span><%= booking.trailer_type === 'dumpster' ? 'Pickup' : 'Return' %></span><span><%= new Date(booking.end_at).toLocaleDateString('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }) %></span></div>
           <div class="qtotal">
             <span class="lbl"><%= paid ? 'Paid' : 'Total' %></span>

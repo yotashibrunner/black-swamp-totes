@@ -326,6 +326,17 @@ input:focus-visible {
   color: var(--muted);
   margin-left: 4px;
 }
+/* Distinct visual treatment for the two daily sections. */
+.sec-title { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.95rem; }
+.sec { border-left: 4px solid transparent; }
+.sec-pickups { border-left-color: var(--accent); }
+.sec-pickups .sec-title { color: #6fd58c; }
+.sec-deliveries { border-left-color: #8ab4f8; }
+.sec-deliveries .sec-title { color: #8ab4f8; }
+
+/* Delivery address shown prominently in dashboard/schedule rows. */
+.booking-address { color: #8ab4f8 !important; font-weight: 600; white-space: normal; }
+
 .booking-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .booking-list:empty { display: none; }
 .booking-row {

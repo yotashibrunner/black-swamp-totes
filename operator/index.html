@@ -124,13 +124,13 @@
 
       <p class="empty" data-dash-empty hidden>Nothing scheduled today, and nothing out.</p>
 
-      <section class="card" data-section="pickups" hidden>
-        <h2>Pickups Today <span class="count" data-count="pickups"></span></h2>
+      <section class="card sec sec-pickups" data-section="pickups" hidden>
+        <h2 class="sec-title">Pickups Today <span class="count" data-count="pickups"></span></h2>
         <ul class="booking-list" data-list="pickups"></ul>
       </section>
 
-      <section class="card" data-section="dropoffs" hidden>
-        <h2>Deliveries — Drop-offs Today <span class="count" data-count="dropoffs"></span></h2>
+      <section class="card sec sec-deliveries" data-section="dropoffs" hidden>
+        <h2 class="sec-title">Deliveries Today <span class="count" data-count="dropoffs"></span></h2>
         <ul class="booking-list" data-list="dropoffs"></ul>
       </section>
 
@@ -199,7 +199,9 @@
           <dl class="kv">
             <div><dt>Trailer</dt><dd data-trailer></dd></div>
             <div><dt>Fulfillment</dt><dd data-fulfillment></dd></div>
-            <div data-address-row hidden><dt>Delivery address</dt><dd data-address></dd></div>
+            <div><dt>Requested time</dt><dd data-reqtime></dd></div>
+            <div data-deliver-row hidden><dt>Deliver to</dt><dd data-deliver></dd></div>
+            <div data-arrive-row hidden><dt>Customer arriving at</dt><dd data-arrive></dd></div>
             <div><dt>Pickup</dt><dd data-start></dd></div>
             <div><dt>Return</dt><dd data-end></dd></div>
             <div><dt>Total paid</dt><dd data-paid></dd></div>

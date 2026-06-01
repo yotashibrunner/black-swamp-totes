@@ -30,16 +30,36 @@ async function sendBookingConfirmation(booking, pdfBuffer, baseUrl) {
   }
 
   const ref = booking.ref_code;
+  const isDelivery = booking.fulfillment === 'delivery';
+  const td = 'style="padding:4px 12px 4px 0;color:#555"';
+
+  // Requested time-of-day (stored on start_at as wall-clock UTC; null at midnight).
+  const sd = new Date(booking.start_at);
+  const hasTime = !(sd.getUTCHours() === 0 && sd.getUTCMinutes() === 0);
+  const timeStr = hasTime
+    ? sd.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' })
+    : null;
+  const timeLabel = isDelivery ? 'Delivery time' : (booking.trailer_type === 'dumpster' ? 'Drop-off time' : 'Pickup time');
+
+  const rows = [
+    `<tr><td ${td}>Equipment</td><td><strong>${booking.trailer_name}</strong></td></tr>`,
+    `<tr><td ${td}>Reference</td><td>${ref}</td></tr>`,
+    `<tr><td ${td}>Fulfillment</td><td>${isDelivery ? 'Delivery' : 'Customer pickup'}</td></tr>`,
+    isDelivery && booking.delivery_address ? `<tr><td ${td}>Address</td><td>${booking.delivery_address}</td></tr>` : '',
+    timeStr ? `<tr><td ${td}>${timeLabel}</td><td><strong>${timeStr}</strong></td></tr>` : '',
+    `<tr><td ${td}>Total paid</td><td>${formatCents(booking.total_cents)}</td></tr>`,
+  ].filter(Boolean).join('');
+
+  const logistics = isDelivery
+    ? `We’ll deliver to <strong>${booking.delivery_address || 'your address'}</strong>${timeStr ? ` around <strong>${timeStr}</strong>` : ''} and pick it back up.`
+    : `Pickup at 2004 Front Street, Toledo, OH 43605 (7am–7pm)${timeStr ? `, around <strong>${timeStr}</strong>` : ''}.`;
+
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0a0d0a;max-width:560px">
       <h2 style="color:#1faa30">Booking confirmed — ${ref}</h2>
       <p>Hi ${booking.customer_name || 'there'}, your Glass City Trailer Rentals booking is confirmed and paid.</p>
-      <table style="font-size:14px;border-collapse:collapse">
-        <tr><td style="padding:4px 12px 4px 0;color:#555">Equipment</td><td><strong>${booking.trailer_name}</strong></td></tr>
-        <tr><td style="padding:4px 12px 4px 0;color:#555">Reference</td><td>${ref}</td></tr>
-        <tr><td style="padding:4px 12px 4px 0;color:#555">Total paid</td><td>${formatCents(booking.total_cents)}</td></tr>
-      </table>
-      <p>Pickup at 2004 Front Street, Toledo, OH 43605 (7am–7pm). Your signed rental agreement is attached as a PDF.</p>
+      <table style="font-size:14px;border-collapse:collapse">${rows}</table>
+      <p>${logistics} Your signed rental agreement is attached as a PDF.</p>
       <p><a href="${baseUrl}/book/${ref}" style="color:#1faa30">View your booking</a></p>
       <p style="color:#888;font-size:12px">Glass City Trailer Rentals LLC · (419) 654-3584</p>
     </div>`;

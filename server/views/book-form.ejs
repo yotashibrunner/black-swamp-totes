@@ -57,10 +57,23 @@
             <div><label class="fl" for="email">Email <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label><input type="email" id="email" inputmode="email" autocomplete="email" required aria-required="true" /></div>
           </div>
 
-          <div class="step"><label class="fl" for="startTime" style="margin:0;"><%= isDumpster ? 'Requested drop-off time' : 'Requested pickup / delivery time' %></label></div>
+          <div class="step"><label class="fl" for="startTime" id="timeLabel" style="margin:0;"><%= isDumpster ? 'Preferred Drop-off Time' : 'Preferred Pickup Time' %></label></div>
           <div class="field-row">
             <div>
-              <input type="time" id="startTime" />
+              <select id="startTime">
+                <option value="07:00">7:00 AM</option>
+                <option value="08:00">8:00 AM</option>
+                <option value="09:00" selected>9:00 AM</option>
+                <option value="10:00">10:00 AM</option>
+                <option value="11:00">11:00 AM</option>
+                <option value="12:00">12:00 PM</option>
+                <option value="13:00">1:00 PM</option>
+                <option value="14:00">2:00 PM</option>
+                <option value="15:00">3:00 PM</option>
+                <option value="16:00">4:00 PM</option>
+                <option value="17:00">5:00 PM</option>
+                <option value="18:00">6:00 PM</option>
+              </select>
               <p class="qnote" style="margin-top:6px;">Business hours 7am–7pm. We'll confirm the exact time.</p>
             </div>
           </div>
@@ -70,10 +83,28 @@
             <label class="tire-ack" style="color:var(--ink);"><input type="radio" name="fulfillment" value="pickup" checked /> <span>Customer Pickup — <strong>Free</strong></span></label>
             <label class="tire-ack" style="color:var(--ink);"><input type="radio" name="fulfillment" value="delivery" /> <span>Delivery — <strong><%= fmt(deliveryFeeCents) %></strong></span></label>
           </div>
-          <div class="field-row" id="addrRow" hidden style="margin-top:12px;">
-            <div>
-              <label class="fl" for="deliveryAddress">Delivery address <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label>
-              <input type="text" id="deliveryAddress" autocomplete="street-address" placeholder="Street, city, ZIP" />
+          <div id="addrRow" hidden style="margin-top:12px;">
+            <div class="field-row">
+              <div>
+                <label class="fl" for="addrStreet">Street address <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label>
+                <input type="text" id="addrStreet" autocomplete="address-line1" placeholder="123 Main St" />
+              </div>
+            </div>
+            <div class="field-row two" style="margin-top:12px;">
+              <div>
+                <label class="fl" for="addrCity">City</label>
+                <input type="text" id="addrCity" value="Toledo" autocomplete="address-level2" />
+              </div>
+              <div>
+                <label class="fl" for="addrState">State</label>
+                <input type="text" id="addrState" value="OH" autocomplete="address-level1" />
+              </div>
+            </div>
+            <div class="field-row" style="margin-top:12px;">
+              <div>
+                <label class="fl" for="addrZip">ZIP <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label>
+                <input type="text" id="addrZip" inputmode="numeric" autocomplete="postal-code" placeholder="43605" />
+              </div>
             </div>
           </div>
 <% } %>
@@ -105,7 +136,10 @@
         return d ? d.value : 'pickup';
       }
 
-      // Live: reveal the address field + add the delivery fee to the shown total.
+      var IS_DUMPSTER = <%= isDumpster ? 'true' : 'false' %>;
+
+      // Live: reveal the address fields, swap the time label, and add the
+      // delivery fee to the shown total.
       function refresh() {
         var delivery = fulfillment() === 'delivery';
         var addrRow = el('addrRow');
@@ -113,6 +147,9 @@
         var feeRow = el('sumDeliveryRow');
         if (feeRow) feeRow.hidden = !delivery;
         el('sumTotal').textContent = money(BASE_TOTAL + (delivery ? DELIVERY_FEE : 0));
+        var label = el('timeLabel');
+        if (label) label.textContent = IS_DUMPSTER ? 'Preferred Drop-off Time'
+          : (delivery ? 'Preferred Delivery Time' : 'Preferred Pickup Time');
       }
       Array.prototype.forEach.call(document.querySelectorAll('input[name="fulfillment"]'), function (r) {
         r.addEventListener('change', refresh);
@@ -129,11 +166,17 @@
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { el('err').textContent = 'A valid email is required — we send your confirmation and receipt there.'; return; }
 
         var ful = fulfillment();
-        var addrEl = el('deliveryAddress');
-        var address = addrEl ? addrEl.value.trim() : '';
-        if (ful === 'delivery' && !address) {
-          el('err').textContent = 'Enter a delivery address, or choose customer pickup.';
-          return;
+        var address = null;
+        if (ful === 'delivery') {
+          var street = el('addrStreet').value.trim();
+          var city = el('addrCity').value.trim() || 'Toledo';
+          var state = el('addrState').value.trim() || 'OH';
+          var zip = el('addrZip').value.trim();
+          if (!street || !zip) {
+            el('err').textContent = 'Enter the street address and ZIP for delivery, or choose customer pickup.';
+            return;
+          }
+          address = street + ', ' + city + ', ' + state + ' ' + zip;
         }
 
         var btn = el('continueBtn');

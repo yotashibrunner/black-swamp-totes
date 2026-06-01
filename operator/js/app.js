@@ -157,6 +157,7 @@
     const addr = node.querySelector('[data-address]');
     if (isDelivery && b.delivery_address) {
       addr.textContent = `📍 ${b.delivery_address}`;
+      addr.classList.add('booking-address');
       addr.hidden = false;
     }
 
@@ -304,7 +305,7 @@
         return;
       }
       sectionEl.hidden = false;
-      countEl.textContent = bookings.length;
+      countEl.textContent = `(${bookings.length})`;
       const rowTpl = document.getElementById('tpl-booking-row');
       for (const b of bookings) {
         const node = rowTpl.content.cloneNode(true);
@@ -368,14 +369,24 @@
       root.querySelector('[data-trailer]').textContent = trailerLine;
 
       const isDelivery = booking.fulfillment === 'delivery';
+      const time = booking.time_fmt || null;
       root.querySelector('[data-fulfillment]').textContent = isDelivery
         ? `Delivery (${booking.delivery_fee_fmt || '$60'})` : 'Customer pickup';
-      const addrRow = root.querySelector('[data-address-row]');
-      if (isDelivery && booking.delivery_address) {
-        addrRow.hidden = false;
-        root.querySelector('[data-address]').textContent = booking.delivery_address;
+      root.querySelector('[data-reqtime]').textContent = time || 'Not specified';
+
+      // Delivery → "Deliver to: <address> at <time>"; pickup → "Customer
+      // arriving at: <time>".
+      const deliverRow = root.querySelector('[data-deliver-row]');
+      const arriveRow = root.querySelector('[data-arrive-row]');
+      if (isDelivery) {
+        deliverRow.hidden = false;
+        arriveRow.hidden = true;
+        const addr = booking.delivery_address || '(no address)';
+        root.querySelector('[data-deliver]').textContent = time ? `${addr} at ${time}` : addr;
       } else {
-        addrRow.hidden = true;
+        deliverRow.hidden = true;
+        arriveRow.hidden = false;
+        root.querySelector('[data-arrive]').textContent = time || 'Not specified';
       }
 
       root.querySelector('[data-start]').textContent = fmtDay(booking.start_at);
