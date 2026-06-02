@@ -193,6 +193,7 @@ async function fetchBooking(where, value) {
     `SELECT b.*,
             t.name AS trailer_name, t.type AS trailer_type, t.slug AS trailer_slug,
             t.size_label, t.hitch_requirement, t.plug_requirement, t.per_tire_cents,
+            t.deposit_cents AS trailer_deposit_cents, t.deposit_enabled AS trailer_deposit_enabled,
             c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone,
             m.name AS managed_by_name
        FROM bookings b
@@ -261,19 +262,32 @@ async function signBooking(id, sig) {
 }
 
 // Mark a booking paid from a Stripe checkout session. Idempotent.
-// `customerEmail` is the address Stripe collected on its checkout page — we
+// `opts.customerEmail` is the address Stripe collected on its checkout page — we
 // backfill it onto the customer when our own form left it blank, so the
-// confirmation email always has somewhere to go.
-async function markPaidBySession(sessionId, paymentIntentId, amountCents, customerEmail) {
+// confirmation email always has somewhere to go. When a deposit was collected,
+// `opts.customerId` / `opts.paymentMethodId` are the saved card (off-session)
+// and `opts.depositCents` the held amount.
+async function markPaidBySession(sessionId, opts = {}) {
+  const {
+    paymentIntentId = null, amountCents = 0, customerEmail = null,
+    customerId = null, paymentMethodId = null, depositCents = 0,
+  } = opts;
+  const deposit = Math.max(0, Math.round(depositCents) || 0);
   const { rows } = await pool.query(
     `UPDATE bookings SET
        status = 'paid',
-       amount_paid_cents = $2,
+       -- Stripe's amount_total includes the refundable deposit; the deposit is
+       -- not revenue, so amount_paid_cents tracks only the rental balance.
+       amount_paid_cents = GREATEST(COALESCE($2,0) - $6, 0),
        stripe_payment_intent_id = COALESCE($3, stripe_payment_intent_id),
+       stripe_customer_id = COALESCE($4, stripe_customer_id),
+       stripe_payment_method_id = COALESCE($5, stripe_payment_method_id),
+       deposit_paid_cents = CASE WHEN $6 > 0 THEN $6 ELSE deposit_paid_cents END,
+       deposit_status = CASE WHEN $6 > 0 THEN 'held' ELSE deposit_status END,
        updated_at = NOW()
      WHERE stripe_session_id = $1 AND status <> 'paid'
      RETURNING id, customer_id`,
-    [sessionId, amountCents || 0, paymentIntentId || null]
+    [sessionId, amountCents || 0, paymentIntentId || null, customerId, paymentMethodId, deposit]
   );
   if (!rows.length) return null; // unknown session or already paid
 
@@ -310,8 +324,11 @@ const OPERATOR_SELECT = `
          b.picked_up_at, b.returned_at, b.customer_notes, b.operator_notes,
          b.contract_signed_at, b.contract_signed_name, b.created_at,
          b.fulfillment, b.delivery_address, b.delivery_fee_cents,
+         b.deposit_paid_cents, b.deposit_refunded_cents, b.deposit_status,
+         b.stripe_customer_id, b.stripe_payment_method_id, b.stripe_payment_intent_id,
          t.id AS trailer_id, t.name AS trailer_name, t.type AS trailer_type,
          t.slug AS trailer_slug, t.size_label, t.status AS trailer_status,
+         t.deposit_cents AS trailer_deposit_cents, t.deposit_enabled AS trailer_deposit_enabled,
          c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email
     FROM bookings b
     JOIN trailers t ON t.id = b.trailer_id

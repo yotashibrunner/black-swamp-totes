@@ -52,7 +52,7 @@ async function sendBookingConfirmation(booking, pdfBuffer, baseUrl) {
 
   const logistics = isDelivery
     ? `We’ll deliver to <strong>${booking.delivery_address || 'your address'}</strong>${timeStr ? ` around <strong>${timeStr}</strong>` : ''} and pick it back up.`
-    : `Pickup at 2004 Front Street, Toledo, OH 43605 (7am–7pm)${timeStr ? `, around <strong>${timeStr}</strong>` : ''}.`;
+    : `Pickup at 4041 Navarre Ave, Oregon, OH 43616 (7am–7pm)${timeStr ? `, around <strong>${timeStr}</strong>` : ''}.`;
 
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0a0d0a;max-width:560px">
@@ -91,8 +91,8 @@ async function sendBookingReminder(booking, kind, baseUrl) {
     ? 'Your pickup is tomorrow.'
     : 'Your rental is due back tomorrow.';
   const detail = isPickup
-    ? 'Pickup is at 2004 Front Street, Toledo, OH 43605 (7am–7pm). Bring a properly rated tow vehicle.'
-    : 'Please return to 2004 Front Street, Toledo, OH 43605 (7am–7pm) by end of day to avoid late charges.';
+    ? 'Pickup is at 4041 Navarre Ave, Oregon, OH 43616 (7am–7pm). Bring a properly rated tow vehicle.'
+    : 'Please return to 4041 Navarre Ave, Oregon, OH 43616 (7am–7pm) by end of day to avoid late charges.';
 
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0a0d0a;max-width:560px">
@@ -183,4 +183,99 @@ async function sendStatement(recipients, pdf, statement) {
   }
 }
 
-module.exports = { isConfigured, sendBookingConfirmation, sendBookingReminder, sendTest, sendStatement };
+// Shared shell so the new transactional emails match the confirmation styling.
+function shell(title, bodyHtml) {
+  return `
+    <div style="font-family:Arial,sans-serif;color:#0a0d0a;max-width:560px">
+      <h2 style="color:#1faa30">${title}</h2>
+      ${bodyHtml}
+      <p style="color:#888;font-size:12px">Glass City Trailer Rentals LLC · (419) 654-3584</p>
+    </div>`;
+}
+
+function payButton(link) {
+  if (!link) return '';
+  return `<p><a href="${link}" style="background:#1faa30;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block">Pay now</a></p>`;
+}
+
+// Notify the customer of a post-rental additional charge (damage, tires, etc.).
+async function sendChargeNotice(booking, charge, paymentLink, baseUrl) {
+  const resend = getClient();
+  if (!resend) return { skipped: true };
+  if (!booking.customer_email) return { skipped: true };
+  const onCard = charge.billing_method === 'card_on_file';
+  const body = `
+    <p>Hi ${booking.customer_name || 'there'}, a charge has been added to your rental <strong>${booking.ref_code}</strong> (${booking.trailer_name}).</p>
+    <table style="font-size:14px;border-collapse:collapse">
+      <tr><td style="padding:4px 12px 4px 0;color:#555">Reason</td><td><strong>${charge.type_label}</strong></td></tr>
+      <tr><td style="padding:4px 12px 4px 0;color:#555">Details</td><td>${charge.description}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0;color:#555">Amount</td><td><strong>${charge.amount_fmt}</strong></td></tr>
+    </table>
+    ${onCard
+      ? '<p>This amount was charged to the card on file.</p>'
+      : `<p>Please pay the amount due online.</p>${payButton(paymentLink)}`}`;
+  return resend.emails.send({
+    from: config.fromEmail,
+    to: booking.customer_email,
+    subject: `${charge.type_label} charge — Glass City ${booking.ref_code}`,
+    html: shell(`Charge added — ${booking.ref_code}`, body),
+  });
+}
+
+// Notify the customer their rental was extended + the fee is due.
+async function sendExtensionNotice(booking, extension, paymentLink, newReturnFmt, baseUrl) {
+  const resend = getClient();
+  if (!resend) return { skipped: true };
+  if (!booking.customer_email) return { skipped: true };
+  const days = extension.days_extended;
+  const body = `
+    <p>Hi ${booking.customer_name || 'there'}, your <strong>${booking.trailer_name}</strong> rental (${booking.ref_code}) has been extended.</p>
+    <table style="font-size:14px;border-collapse:collapse">
+      <tr><td style="padding:4px 12px 4px 0;color:#555">New return date</td><td><strong>${newReturnFmt}</strong></td></tr>
+      <tr><td style="padding:4px 12px 4px 0;color:#555">Extra days</td><td>${days}</td></tr>
+      <tr><td style="padding:4px 12px 4px 0;color:#555">Extension fee</td><td><strong>${extension.extension_fee_fmt}</strong></td></tr>
+    </table>
+    <p>Please complete the extension fee payment to confirm your new return date.</p>
+    ${payButton(paymentLink)}`;
+  return resend.emails.send({
+    from: config.fromEmail,
+    to: booking.customer_email,
+    subject: `Rental extended to ${newReturnFmt} — Glass City ${booking.ref_code}`,
+    html: shell(`Rental extended — ${booking.ref_code}`, body),
+  });
+}
+
+// Notify the customer of the return outcome + deposit settlement.
+async function sendDepositOutcome(booking, summary, baseUrl) {
+  const resend = getClient();
+  if (!resend) return { skipped: true };
+  if (!booking.customer_email) return { skipped: true };
+  const dRows = (summary.deductions || []).map((d) =>
+    `<tr><td style="padding:4px 12px 4px 0;color:#555">${({
+      damage: 'Damage', tonnage_overage: 'Tonnage overage', prohibited_items: 'Prohibited items',
+      tires: 'Tires', late_return: 'Late return', other: 'Other', deposit_deduction: 'Deduction',
+    })[d.charge_type] || 'Charge'}</td><td>${formatCents(d.amount_cents)}</td></tr>`).join('');
+  const body = summary.clean
+    ? `<p>Hi ${booking.customer_name || 'there'}, thanks for returning your <strong>${booking.trailer_name}</strong> (${booking.ref_code}) in good condition.</p>
+       ${summary.deposit_cents > 0 ? `<p>Your <strong>${formatCents(summary.deposit_cents)}</strong> security deposit is being refunded to your original payment method (typically 3–5 business days).</p>` : ''}`
+    : `<p>Hi ${booking.customer_name || 'there'}, here's the summary for your returned rental <strong>${booking.ref_code}</strong> (${booking.trailer_name}).</p>
+       <table style="font-size:14px;border-collapse:collapse">
+         ${dRows}
+         <tr><td style="padding:6px 12px 4px 0;color:#555"><strong>Total deductions</strong></td><td><strong>${formatCents(summary.total_deductions_cents)}</strong></td></tr>
+         ${summary.deposit_cents > 0 ? `<tr><td style="padding:4px 12px 4px 0;color:#555">Deposit held</td><td>${formatCents(summary.deposit_cents)}</td></tr>` : ''}
+         ${summary.refund_cents > 0 ? `<tr><td style="padding:4px 12px 4px 0;color:#555">Deposit refunded</td><td><strong>${formatCents(summary.refund_cents)}</strong></td></tr>` : ''}
+         ${summary.overage_cents > 0 ? `<tr><td style="padding:4px 12px 4px 0;color:#555">Charged to card on file</td><td><strong>${formatCents(summary.overage_cents)}</strong></td></tr>` : ''}
+       </table>
+       ${summary.refund_cents > 0 ? '<p>Refunds typically post in 3–5 business days.</p>' : ''}`;
+  return resend.emails.send({
+    from: config.fromEmail,
+    to: booking.customer_email,
+    subject: `Return summary — Glass City ${booking.ref_code}`,
+    html: shell(`Return processed — ${booking.ref_code}`, body),
+  });
+}
+
+module.exports = {
+  isConfigured, sendBookingConfirmation, sendBookingReminder, sendTest, sendStatement,
+  sendChargeNotice, sendExtensionNotice, sendDepositOutcome,
+};

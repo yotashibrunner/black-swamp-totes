@@ -14,6 +14,8 @@ const { rateLimit } = require('../middleware/rate-limit');
 const trailerSvc = require('../services/trailer');
 const bookingSvc = require('../services/booking');
 const stripeSvc = require('../services/stripe');
+const settingsSvc = require('../services/settings');
+const chargesSvc = require('../services/charges');
 const { generatePdf } = require('../services/contract');
 const { getBusyRanges } = require('../services/availability');
 const { computeQuote } = require('../services/pricing');
@@ -190,9 +192,14 @@ router.post('/bookings/:id/checkout', async (req, res, next) => {
     }
 
     const origin = originOf(req);
+    // Refundable security deposit, when the global toggle + this trailer call
+    // for one. Added as a separate line item; the card is saved off-session.
+    const depositsOn = await settingsSvc.depositsEnabled();
+    const depositCents = chargesSvc.depositDueCents(booking, depositsOn);
     const session = await stripeSvc.createCheckoutSession(booking, {
       successUrl: `${origin}/book/${booking.ref_code}?paid=1`,
       cancelUrl: `${origin}/book/${booking.id}/contract`,
+      depositCents,
     });
     await bookingSvc.attachCheckoutSession(booking.id, session.id);
     res.json({ url: session.url });

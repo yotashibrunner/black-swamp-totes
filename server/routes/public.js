@@ -128,7 +128,7 @@ router.get('/book/:ref/calendar.ics', async (req, res, next) => {
       `DTSTART:${stamp(b.start_at)}`,
       `DTEND:${stamp(b.end_at)}`,
       `SUMMARY:Glass City Rental — ${b.trailer_name} (${b.ref_code})`,
-      'LOCATION:2004 Front Street, Toledo, OH 43605',
+      'LOCATION:4041 Navarre Ave, Oregon, OH 43616',
       'END:VEVENT', 'END:VCALENDAR',
     ].join('\r\n');
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');

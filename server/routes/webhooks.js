@@ -8,6 +8,7 @@
 const express = require('express');
 const stripeSvc = require('../services/stripe');
 const bookingSvc = require('../services/booking');
+const chargesSvc = require('../services/charges');
 const emailSvc = require('../services/email');
 const notifySvc = require('../services/notify');
 const { generatePdf } = require('../services/contract');
@@ -27,14 +28,40 @@ router.post('/stripe', async (req, res) => {
     console.log(`[webhook] received ${event.type} (${event.id})`);
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
+      const kind = (session.metadata && session.metadata.type) || 'booking';
+
+      // Extension / additional-charge payment links resolve their own records
+      // (an extension also pushes the booking's return date out). They don't
+      // send a confirmation email.
+      if (kind === 'extension') {
+        const ext = await chargesSvc.markExtensionPaidBySession(session.id, session.payment_intent);
+        console.log(`[webhook] extension ${ext ? ext.id + ' paid (return date moved)' : 'already paid / unknown'}`);
+        return res.json({ received: true });
+      }
+      if (kind === 'charge') {
+        const ch = await chargesSvc.markChargePaidBySession(session.id, session.payment_intent);
+        console.log(`[webhook] additional charge ${ch ? ch.id + ' paid' : 'already paid / unknown'}`);
+        return res.json({ received: true });
+      }
+
       // Stripe always collects an email on its checkout page; prefer that, then
       // any email we passed. Used to mark paid + backfill the customer record.
       const stripeEmail =
         (session.customer_details && session.customer_details.email) || session.customer_email || null;
 
-      const booking = await bookingSvc.markPaidBySession(
-        session.id, session.payment_intent, session.amount_total, stripeEmail
-      );
+      // We save the card off-session on every booking — resolve the customer +
+      // payment method so we can later refund a deposit / charge the card on file.
+      const depositCents = Number(session.metadata && session.metadata.deposit_cents) || 0;
+      const { customerId, paymentMethodId } = await stripeSvc.getSavedPaymentDetails(session);
+
+      const booking = await bookingSvc.markPaidBySession(session.id, {
+        paymentIntentId: session.payment_intent,
+        amountCents: session.amount_total,
+        customerEmail: stripeEmail,
+        customerId,
+        paymentMethodId,
+        depositCents,
+      });
       if (!booking) {
         console.warn(`[webhook] no pending booking for session ${session.id} (already paid or unknown).`);
         return res.json({ received: true });

@@ -34,6 +34,8 @@ const { OCCUPYING_STATUSES } = require('../services/availability');
 const accountsSvc = require('../services/accounts');
 const reportsSvc = require('../services/reports');
 const auditSvc = require('../services/audit');
+const chargesSvc = require('../services/charges');
+const settingsSvc = require('../services/settings');
 const { generateStatementPdf } = require('../services/statement');
 const { requireAdmin, requireRole } = require('../middleware/auth');
 const { formatCents } = require('../utils/money');
@@ -48,6 +50,7 @@ const TRAILER_COLUMNS = [
   'flat_drop_off_cents', 'flat_drop_off_days', 'extra_day_cents', 'per_tire_cents',
   'hitch_requirement', 'plug_requirement', 'specs', 'min_hours',
   'status', 'display_order', 'active', 'quantity_total', 'quantity_on_hold',
+  'deposit_cents', 'deposit_enabled',
   'created_at', 'updated_at',
 ];
 const SELECT_TRAILER = `SELECT ${TRAILER_COLUMNS.join(', ')} FROM trailers`;
@@ -103,6 +106,8 @@ const UPDATABLE = {
   display_order: nonNegInt,
   quantity_total: nonNegInt,
   quantity_on_hold: nonNegInt,
+  deposit_cents: nonNegInt,
+  deposit_enabled: bool,
 };
 
 // GET /api/operator/me — echo back the authenticated operator.
@@ -186,6 +191,8 @@ function serializeBooking(b) {
     total_fmt: formatCents(b.total_cents),
     amount_paid_fmt: formatCents(b.amount_paid_cents),
     delivery_fee_fmt: formatCents(b.delivery_fee_cents),
+    deposit_paid_fmt: formatCents(b.deposit_paid_cents),
+    deposit_refunded_fmt: formatCents(b.deposit_refunded_cents),
     time_fmt: fmtTime(b.start_at),
     contract_url: b.contract_signed_at ? `/api/bookings/${b.ref_code}/contract.pdf` : null,
   };
@@ -244,6 +251,128 @@ router.patch('/bookings/:id', requireRole('admin', 'operator'), async (req, res,
     res.json({ booking: serializeBooking(booking) });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// ── Returns, extensions & additional charges ───────────────────────────────
+const canManageBooking = requireRole('admin', 'operator');
+
+// POST /api/operator/bookings/:id/return — finalize a return with condition.
+// Body: { clean, deductions: [{ charge_type, description, amount_cents, weight_tons? }], operator_notes? }.
+// Settles the deposit (refund / partial / charge overage) and frees the trailer.
+router.post('/bookings/:id/return', canManageBooking, async (req, res, next) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid booking id' });
+  try {
+    const result = await chargesSvc.finalizeReturn(id, req.body || {}, req.user.id);
+    res.json({
+      booking: serializeBooking(result.booking),
+      summary: result.summary,
+      settlement: result.settlement,
+    });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// POST /api/operator/bookings/:id/extend — extend an out rental.
+// Body: { new_return_date: 'YYYY-MM-DD' }. Creates a payment link for the fee.
+router.post('/bookings/:id/extend', canManageBooking, async (req, res, next) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid booking id' });
+  try {
+    const result = await chargesSvc.createExtension(id, req.body || {}, req.user.id);
+    res.status(201).json(result);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// GET /api/operator/bookings/:id/charges — charges + extensions for a booking.
+router.get('/bookings/:id/charges', async (req, res, next) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid booking id' });
+  try {
+    const [charges, extensions] = await Promise.all([
+      chargesSvc.listCharges(id), chargesSvc.listExtensions(id),
+    ]);
+    res.json({ charges, extensions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/operator/bookings/:id/charges — add a post-rental charge.
+// Body: { charge_type, description, amount_cents, weight_tons?, billing_method, notes? }.
+router.post('/bookings/:id/charges', canManageBooking, async (req, res, next) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid booking id' });
+  try {
+    const charge = await chargesSvc.createCharge(id, req.body || {}, req.user.id);
+    res.status(201).json({ charge });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// PATCH /api/operator/charges/:id — update a charge's status (waive/dispute/paid).
+router.patch('/charges/:id', canManageBooking, async (req, res, next) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid charge id' });
+  try {
+    const charge = await chargesSvc.updateCharge(id, req.body || {});
+    res.json({ charge });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// ── Business settings (admin) ──────────────────────────────────────────────
+// GET /api/operator/settings — the operator-tunable business settings.
+router.get('/settings', requireAdmin, async (req, res, next) => {
+  try {
+    res.json({ settings: await settingsSvc.getBusinessSettings() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/operator/settings — update deposits_enabled and/or the tonnage
+// overage rate. Audit-logged.
+router.patch('/settings', requireAdmin, async (req, res, next) => {
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  try {
+    const changed = [];
+    if (body.deposits_enabled !== undefined) {
+      if (typeof body.deposits_enabled !== 'boolean') {
+        return res.status(400).json({ error: 'deposits_enabled must be true or false.' });
+      }
+      await settingsSvc.setSetting('deposits_enabled', body.deposits_enabled);
+      changed.push('deposits_enabled');
+    }
+    if (body.tonnage_overage_rate_cents !== undefined) {
+      const v = body.tonnage_overage_rate_cents;
+      if (!Number.isInteger(v) || v < 0) {
+        return res.status(400).json({ error: 'tonnage_overage_rate_cents must be a non-negative integer.' });
+      }
+      await settingsSvc.setSetting('tonnage_overage_rate_cents', v);
+      changed.push('tonnage_overage_rate_cents');
+    }
+    if (!changed.length) return res.status(400).json({ error: 'No recognized settings to update.' });
+
+    await query(
+      `INSERT INTO audit_log (admin_user_id, action_by, action, entity_type, details)
+       VALUES ($1, $1, 'settings.update', 'settings', $2)`,
+      [req.user.id, JSON.stringify({ fields: changed })]
+    ).catch((e) => console.error('[settings] audit failed:', e.message));
+
+    res.json({ settings: await settingsSvc.getBusinessSettings() });
+  } catch (err) {
     next(err);
   }
 });

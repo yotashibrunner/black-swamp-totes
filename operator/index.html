@@ -123,6 +123,14 @@
           </span>
           <span class="nav-chevron" aria-hidden="true">›</span>
         </button>
+        <button type="button" class="nav-item" data-nav="settings" data-admin hidden>
+          <span class="nav-icon" aria-hidden="true">⚙️</span>
+          <span class="nav-text">
+            <span class="nav-label">Settings</span>
+            <span class="nav-sub muted">Deposits &amp; rates</span>
+          </span>
+          <span class="nav-chevron" aria-hidden="true">›</span>
+        </button>
       </nav>
 
       <p class="error" data-error hidden></p>
@@ -221,6 +229,7 @@
             <div><dt>Pickup</dt><dd data-start></dd></div>
             <div><dt>Return</dt><dd data-end></dd></div>
             <div><dt>Total paid</dt><dd data-paid></dd></div>
+            <div data-deposit-row hidden><dt>Security deposit</dt><dd data-deposit></dd></div>
             <div data-notes-row hidden><dt>Customer notes</dt><dd data-notes></dd></div>
             <div data-opnotes-row hidden><dt>Operator notes</dt><dd data-opnotes></dd></div>
           </dl>
@@ -233,9 +242,179 @@
           <p class="error" data-action-error hidden></p>
           <button type="button" class="btn btn-primary" data-pickup hidden>Mark Picked Up</button>
           <button type="button" class="btn btn-primary" data-return hidden>Mark Returned</button>
+          <button type="button" class="btn btn-ghost" data-extend hidden>Extend Rental</button>
+          <button type="button" class="btn btn-ghost" data-add-charge hidden>Add Charge</button>
           <p class="muted done-note" data-done hidden></p>
           <p class="muted attribution" data-attribution hidden></p>
         </section>
+
+        <section class="card" data-charges-section hidden>
+          <h2>Charges &amp; extensions</h2>
+          <ul class="charge-list" data-charges-list></ul>
+          <p class="empty" data-charges-empty hidden>No charges or extensions yet.</p>
+        </section>
+      </div>
+    </main>
+  </template>
+
+  <!-- A single charge/extension row (cloned into the detail list). -->
+  <template id="tpl-charge-row">
+    <li class="charge-row">
+      <span class="charge-meta">
+        <span class="charge-title" data-title></span>
+        <span class="charge-sub muted" data-sub></span>
+      </span>
+      <span class="charge-tail">
+        <span class="charge-amt" data-amt></span>
+        <span class="badge" data-status></span>
+      </span>
+    </li>
+  </template>
+
+  <!-- ── Return condition (deposit settlement) ──────────────────────── -->
+  <template id="tpl-return-condition">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Cancel</button>
+      <span class="topbar-title">Return condition</span>
+      <span class="topbar-spacer"></span>
+    </header>
+    <main class="screen content">
+      <section class="card">
+        <h2 data-formtitle>Return</h2>
+        <p class="muted" data-deposit-line></p>
+        <div class="seg" role="group" aria-label="Return condition">
+          <button type="button" class="seg-btn" data-mode="clean" aria-pressed="true">Clean return</button>
+          <button type="button" class="seg-btn" data-mode="issues" aria-pressed="false">Issues found</button>
+        </div>
+      </section>
+
+      <section class="card" data-deductions hidden>
+        <h2>Deductions</h2>
+        <div class="fields" data-deduction-fields></div>
+        <dl class="kv totals">
+          <div><dt>Total deductions</dt><dd data-total-deductions>$0</dd></div>
+          <div><dt>Deposit refund</dt><dd data-refund>$0</dd></div>
+          <div data-overage-row hidden><dt>Charged to card on file</dt><dd data-overage>$0</dd></div>
+        </dl>
+      </section>
+
+      <section class="card">
+        <label class="field">
+          <span>Operator notes (optional)</span>
+          <textarea data-opnotes rows="2"></textarea>
+        </label>
+        <p class="error" data-error hidden></p>
+        <button type="button" class="btn btn-primary" data-confirm>Confirm return</button>
+      </section>
+    </main>
+  </template>
+
+  <!-- ── Extend rental ──────────────────────────────────────────────── -->
+  <template id="tpl-extend-rental">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Cancel</button>
+      <span class="topbar-title">Extend rental</span>
+      <span class="topbar-spacer"></span>
+    </header>
+    <main class="screen content">
+      <form class="card" data-form novalidate>
+        <h2 data-formtitle>Extend</h2>
+        <p class="muted" data-current></p>
+        <label class="field">
+          <span>New return date</span>
+          <input type="date" data-newdate required />
+        </label>
+        <p class="muted" data-preview></p>
+        <p class="error" data-error hidden></p>
+        <p class="saved muted" data-saved hidden></p>
+        <button type="submit" class="btn btn-primary" data-save>Extend &amp; send payment link</button>
+      </form>
+    </main>
+  </template>
+
+  <!-- ── Add charge ─────────────────────────────────────────────────── -->
+  <template id="tpl-add-charge">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Cancel</button>
+      <span class="topbar-title">Add charge</span>
+      <span class="topbar-spacer"></span>
+    </header>
+    <main class="screen content">
+      <form class="card" data-form novalidate>
+        <h2 data-formtitle>Add charge</h2>
+        <label class="field">
+          <span>Charge type</span>
+          <select data-type>
+            <option value="damage">Damage</option>
+            <option value="prohibited_items">Prohibited items</option>
+            <option value="tires">Tires ($/tire)</option>
+            <option value="tonnage_overage">Tonnage overage</option>
+            <option value="late_return">Late return</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label class="field" data-tires-field hidden>
+          <span>Number of tires</span>
+          <input type="number" data-tires min="0" step="1" inputmode="numeric" />
+        </label>
+        <label class="field" data-tons-field hidden>
+          <span>Weight over (tons)</span>
+          <input type="number" data-tons min="0" step="0.01" inputmode="decimal" />
+        </label>
+        <label class="field">
+          <span>Description</span>
+          <input type="text" data-desc maxlength="500" />
+        </label>
+        <label class="field">
+          <span>Amount ($)</span>
+          <input type="number" data-amount min="0" step="0.01" inputmode="decimal" />
+        </label>
+        <label class="field">
+          <span>Billing method</span>
+          <select data-method>
+            <option value="payment_link">Send payment link</option>
+            <option value="card_on_file">Charge card on file</option>
+          </select>
+        </label>
+        <p class="muted" data-card-note hidden>No saved card on file — only a payment link is available.</p>
+        <p class="error" data-error hidden></p>
+        <p class="saved muted" data-saved hidden></p>
+        <button type="submit" class="btn btn-primary" data-save>Add charge</button>
+      </form>
+    </main>
+  </template>
+
+  <!-- ── Settings (admin) ───────────────────────────────────────────── -->
+  <template id="tpl-settings">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
+      <span class="topbar-title">Settings</span>
+      <span class="topbar-spacer"></span>
+    </header>
+    <main class="screen content">
+      <p class="empty" data-loading>Loading…</p>
+      <p class="error" data-error hidden></p>
+      <div data-body hidden>
+        <section class="card">
+          <h2>Security deposits</h2>
+          <label class="toggle-row">
+            <input type="checkbox" data-deposits-enabled />
+            <span>Require security deposits</span>
+          </label>
+          <p class="muted" data-deposits-status></p>
+          <p class="muted small">Takes effect on the next booking — existing bookings are unchanged. Set each trailer's deposit amount in Inventory.</p>
+        </section>
+        <section class="card">
+          <h2>Tonnage overage rate</h2>
+          <label class="field">
+            <span>Rate per ton ($)</span>
+            <input type="number" data-tonnage min="0" step="0.01" inputmode="decimal" />
+          </label>
+          <p class="muted small">Used to auto-calculate tonnage-overage charges at return and on the Add Charge screen.</p>
+        </section>
+        <p class="error" data-save-error hidden></p>
+        <p class="saved muted" data-saved hidden>Saved.</p>
+        <button type="button" class="btn btn-primary" data-save>Save settings</button>
       </div>
     </main>
   </template>

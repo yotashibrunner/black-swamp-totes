@@ -13,7 +13,7 @@ const PDFDocument = require('pdfkit');
 const { formatCents } = require('../utils/money');
 
 const CONTRACT_VERSION = 1;
-const PICKUP_ADDRESS = '2004 Front Street, Toledo, OH 43605';
+const PICKUP_ADDRESS = '4041 Navarre Ave, Oregon, OH 43616';
 const BUSINESS_NAME = 'Glass City Trailer Rentals LLC';
 
 function fmtDate(value) {

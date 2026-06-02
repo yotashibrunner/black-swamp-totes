@@ -133,6 +133,22 @@
     el.className = `badge ${meta.cls}`;
   }
 
+  // Human-readable deposit state for the booking detail.
+  function depositStatusLine(b) {
+    const held = b.deposit_paid_fmt || '$0';
+    switch (b.deposit_status) {
+      case 'held': return `${held} held`;
+      case 'refunded': return `${held} — refunded`;
+      case 'partially_kept': return `${held} held · ${b.deposit_refunded_fmt || '$0'} refunded`;
+      case 'kept': return `${held} — kept`;
+      default: return held;
+    }
+  }
+
+  const CHARGE_STATUS = {
+    pending: 'badge-warn', paid: 'badge-ok', waived: 'badge-done', disputed: 'badge-oos',
+  };
+
   // Deterministic color per trailer so the schedule reads at a glance.
   function trailerHue(key) {
     let h = 0;
@@ -283,6 +299,7 @@
     root.querySelector('[data-nav="diagnostics"]').addEventListener('click', () => renderDiagnostics());
     root.querySelector('[data-nav="reports"]').addEventListener('click', () => renderReports());
     root.querySelector('[data-nav="audit"]').addEventListener('click', () => renderAudit());
+    root.querySelector('[data-nav="settings"]').addEventListener('click', () => renderSettings());
 
     // Role-gated nav: admin-only items (inventory, calendar, accounts,
     // diagnostics) for admins; reports + audit for admins and owners.
@@ -399,6 +416,14 @@
       root.querySelector('[data-paid]').textContent =
         booking.amount_paid_cents ? booking.amount_paid_fmt : `${booking.total_fmt} (unpaid)`;
 
+      const depRow = root.querySelector('[data-deposit-row]');
+      if (booking.deposit_status && booking.deposit_status !== 'none') {
+        depRow.hidden = false;
+        root.querySelector('[data-deposit]').textContent = depositStatusLine(booking);
+      } else {
+        depRow.hidden = true;
+      }
+
       if (booking.customer_notes) {
         root.querySelector('[data-notes-row]').hidden = false;
         root.querySelector('[data-notes]').textContent = booking.customer_notes;
@@ -425,6 +450,8 @@
       // transitions server-side.) `isDelivery` is already in scope above.
       const pickupBtn = root.querySelector('[data-pickup]');
       const returnBtn = root.querySelector('[data-return]');
+      const extendBtn = root.querySelector('[data-extend]');
+      const addChargeBtn = root.querySelector('[data-add-charge]');
       const doneEl = root.querySelector('[data-done]');
       // Owners are read-only — they never see the mark buttons.
       const canAct = !(api.auth.user && api.auth.user.role === 'owner');
@@ -434,6 +461,8 @@
       returnBtn.textContent = isDelivery ? 'Mark Retrieved' : 'Mark Returned';
       pickupBtn.hidden = !canPickup;
       returnBtn.hidden = !canReturn;
+      extendBtn.hidden = !(canAct && booking.status === 'out');
+      addChargeBtn.hidden = !(canAct && booking.status === 'returned');
       // Attribution: who made the most recent status change, and when.
       const attrEl = root.querySelector('[data-attribution]');
       const who = booking.managed_by_name;
@@ -482,12 +511,393 @@
       }
     }
 
+    const reopen = () => renderBookingDetail(booking.id, onBack);
     root.querySelector('[data-pickup]').addEventListener('click', (e) =>
       transition(e.currentTarget, 'out', 'Marking…'));
-    root.querySelector('[data-return]').addEventListener('click', (e) =>
-      transition(e.currentTarget, 'returned', 'Marking…'));
+    root.querySelector('[data-return]').addEventListener('click', (e) => {
+      // A held deposit must be settled through the Return Condition screen;
+      // otherwise a return is a simple status transition.
+      if (booking.deposit_status === 'held') renderReturnCondition(booking, reopen);
+      else transition(e.currentTarget, 'returned', 'Marking…');
+    });
+    root.querySelector('[data-extend]').addEventListener('click', () => renderExtendRental(booking, reopen));
+    root.querySelector('[data-add-charge]').addEventListener('click', () => renderAddCharge(booking, reopen));
+
+    // Charges + extensions history (loaded once; non-fatal on failure).
+    (async function loadCharges() {
+      const section = root.querySelector('[data-charges-section]');
+      const listEl = root.querySelector('[data-charges-list]');
+      const emptyEl = root.querySelector('[data-charges-empty]');
+      // Only relevant once a rental is active or done.
+      if (!['out', 'returned'].includes(booking.status)) return;
+      let data;
+      try {
+        data = await api.apiFetch(`/api/operator/bookings/${booking.id}/charges`);
+      } catch (err) { return; }
+      section.hidden = false;
+      const tpl = document.getElementById('tpl-charge-row');
+      const rows = [];
+      for (const e of data.extensions || []) {
+        rows.push({
+          title: `Extension · ${e.days_extended} day${e.days_extended > 1 ? 's' : ''}`,
+          sub: `New return ${fmtReturnDay(e.new_end_at)}`,
+          amt: e.extension_fee_fmt, status: e.status,
+        });
+      }
+      for (const c of data.charges || []) {
+        rows.push({
+          title: c.type_label, sub: c.description, amt: c.amount_fmt, status: c.status,
+        });
+      }
+      if (!rows.length) { emptyEl.hidden = false; return; }
+      for (const r of rows) {
+        const node = tpl.content.cloneNode(true);
+        node.querySelector('[data-title]').textContent = r.title;
+        node.querySelector('[data-sub]').textContent = r.sub || '';
+        node.querySelector('[data-amt]').textContent = r.amt || '';
+        const badge = node.querySelector('[data-status]');
+        badge.textContent = r.status;
+        badge.className = `badge ${CHARGE_STATUS[r.status] || ''}`;
+        listEl.appendChild(node);
+      }
+    })();
 
     detailEl.hidden = false;
+  }
+
+  // ── Return condition (deposit settlement) ────────────────────────────────
+  // Deduction lines the operator can apply against the deposit at return.
+  const DEDUCTION_TYPES = [
+    { key: 'damage', label: 'Damage' },
+    { key: 'prohibited_items', label: 'Prohibited items' },
+    { key: 'tires', label: 'Tires' },
+    { key: 'tonnage_overage', label: 'Tonnage overage' },
+    { key: 'other', label: 'Other' },
+  ];
+
+  async function renderReturnCondition(booking, onDone) {
+    mount('tpl-return-condition');
+    root.querySelector('[data-back]').addEventListener('click', onDone);
+    root.querySelector('[data-formtitle]').textContent =
+      `Return — ${booking.customer_name || booking.ref_code}`;
+
+    const depositCents = booking.deposit_paid_cents || 0;
+    root.querySelector('[data-deposit-line]').textContent =
+      `Deposit held: ${booking.deposit_paid_fmt || '$0'}`;
+
+    const modeBtns = root.querySelectorAll('[data-mode]');
+    const dedSection = root.querySelector('[data-deductions]');
+    let mode = 'clean';
+    function setMode(m) {
+      mode = m;
+      modeBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+      dedSection.hidden = m === 'clean';
+      recompute();
+    }
+    modeBtns.forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+    // Build a row per deduction type: a $ amount, plus a count for tires and a
+    // tons input for tonnage (auto-calculated from the settings rate).
+    let tonnageRateCents = 7500;
+    api.apiFetch('/api/operator/settings').then((d) => {
+      if (d.settings && Number.isInteger(d.settings.tonnage_overage_rate_cents)) {
+        tonnageRateCents = d.settings.tonnage_overage_rate_cents;
+      }
+    }).catch(() => {});
+
+    const fieldsEl = root.querySelector('[data-deduction-fields]');
+    const amountInputs = {};
+    const perTireCents = booking.per_tire_cents || 300;
+    for (const t of DEDUCTION_TYPES) {
+      const wrap = document.createElement('div');
+      wrap.className = 'field';
+      const label = document.createElement('label');
+      label.textContent = t.label;
+      const amt = document.createElement('input');
+      amt.type = 'number'; amt.min = '0'; amt.step = '0.01'; amt.inputMode = 'decimal';
+      amt.placeholder = '0.00';
+
+      if (t.key === 'tires') {
+        const count = document.createElement('input');
+        count.type = 'number'; count.min = '0'; count.step = '1'; count.inputMode = 'numeric';
+        count.placeholder = `# tires @ ${fmtMoney(perTireCents)}/ea`;
+        count.addEventListener('input', () => {
+          const n = Math.max(0, parseInt(count.value, 10) || 0);
+          amt.value = n ? centsToInput(n * perTireCents) : '';
+          recompute();
+        });
+        wrap.append(label, count, amt);
+      } else if (t.key === 'tonnage_overage') {
+        const tons = document.createElement('input');
+        tons.type = 'number'; tons.min = '0'; tons.step = '0.01'; tons.inputMode = 'decimal';
+        tons.placeholder = 'tons over';
+        tons.dataset.tons = '1';
+        tons.addEventListener('input', () => {
+          const n = Math.max(0, Number(tons.value) || 0);
+          amt.value = n ? centsToInput(Math.round(n * tonnageRateCents)) : '';
+          recompute();
+        });
+        amountInputs[t.key + '_tons'] = tons;
+        wrap.append(label, tons, amt);
+      } else {
+        wrap.append(label, amt);
+      }
+      amt.addEventListener('input', recompute);
+      amountInputs[t.key] = amt;
+      fieldsEl.appendChild(wrap);
+    }
+
+    const totalEl = root.querySelector('[data-total-deductions]');
+    const refundEl = root.querySelector('[data-refund]');
+    const overageRow = root.querySelector('[data-overage-row]');
+    const overageEl = root.querySelector('[data-overage]');
+    function collectDeductions() {
+      const out = [];
+      for (const t of DEDUCTION_TYPES) {
+        const cents = inputToCents(amountInputs[t.key].value);
+        if (cents && cents > 0) {
+          const d = { charge_type: t.key, description: t.label, amount_cents: cents };
+          if (t.key === 'tonnage_overage' && amountInputs.tonnage_overage_tons) {
+            const tons = Number(amountInputs.tonnage_overage_tons.value) || null;
+            if (tons) { d.weight_tons = tons; d.description = `${tons} tons over`; }
+          }
+          out.push(d);
+        }
+      }
+      return out;
+    }
+    function recompute() {
+      const total = mode === 'clean' ? 0 : collectDeductions().reduce((s, d) => s + d.amount_cents, 0);
+      const refund = Math.max(0, depositCents - total);
+      const overage = Math.max(0, total - depositCents);
+      totalEl.textContent = fmtMoney(total) || '$0';
+      refundEl.textContent = fmtMoney(refund) || '$0';
+      overageRow.hidden = overage <= 0;
+      overageEl.textContent = fmtMoney(overage) || '$0';
+    }
+    setMode('clean');
+
+    const errEl = root.querySelector('[data-error]');
+    const confirmBtn = root.querySelector('[data-confirm]');
+    confirmBtn.addEventListener('click', async () => {
+      errEl.hidden = true;
+      const clean = mode === 'clean';
+      const deductions = clean ? [] : collectDeductions();
+      if (!clean && !deductions.length) {
+        errEl.textContent = 'Enter at least one deduction, or choose Clean return.';
+        errEl.hidden = false;
+        return;
+      }
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Processing…';
+      try {
+        await api.apiFetch(`/api/operator/bookings/${booking.id}/return`, {
+          method: 'POST',
+          body: JSON.stringify({
+            clean, deductions,
+            operator_notes: root.querySelector('[data-opnotes]').value.trim() || undefined,
+          }),
+        });
+        onDone();
+      } catch (err) {
+        if (handleAuth(err)) return;
+        errEl.textContent = err.message || 'Could not process the return.';
+        errEl.hidden = false;
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Confirm return';
+      }
+    });
+  }
+
+  // ── Extend rental ────────────────────────────────────────────────────────
+  function renderExtendRental(booking, onDone) {
+    mount('tpl-extend-rental');
+    root.querySelector('[data-back]').addEventListener('click', onDone);
+    root.querySelector('[data-formtitle]').textContent = `Extend — ${booking.ref_code}`;
+    const currentReturn = fmtReturnDay(booking.end_at);
+    root.querySelector('[data-current]').textContent = `Current return: ${currentReturn}`;
+
+    const dateEl = root.querySelector('[data-newdate]');
+    const previewEl = root.querySelector('[data-preview]');
+    const errEl = root.querySelector('[data-error]');
+    const savedEl = root.querySelector('[data-saved]');
+    const saveBtn = root.querySelector('[data-save]');
+    // Earliest selectable new return = current return + 1 day.
+    const minDate = ymd(new Date(new Date(booking.end_at).getTime())); // end_at is the day after current return
+    dateEl.min = minDate;
+
+    dateEl.addEventListener('change', () => {
+      previewEl.textContent = '';
+      if (!dateEl.value) return;
+      const newEndExcl = parseUTC(dateEl.value).getTime() + DAY_MS;
+      const days = Math.round((newEndExcl - new Date(booking.end_at).getTime()) / DAY_MS);
+      if (days > 0) previewEl.textContent = `${days} extra day${days > 1 ? 's' : ''} — fee calculated at the daily rate.`;
+    });
+
+    root.querySelector('[data-form]').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errEl.hidden = true; savedEl.hidden = true;
+      if (!dateEl.value) { errEl.textContent = 'Pick a new return date.'; errEl.hidden = false; return; }
+      saveBtn.disabled = true; saveBtn.textContent = 'Extending…';
+      try {
+        const r = await api.apiFetch(`/api/operator/bookings/${booking.id}/extend`, {
+          method: 'POST', body: JSON.stringify({ new_return_date: dateEl.value }),
+        });
+        savedEl.textContent = `Extended. Fee ${r.extension.extension_fee_fmt} — payment link sent to the customer.`;
+        savedEl.hidden = false;
+        saveBtn.textContent = 'Done';
+        setTimeout(onDone, 1200);
+      } catch (err) {
+        if (handleAuth(err)) return;
+        errEl.textContent = err.message || 'Could not extend the rental.';
+        errEl.hidden = false;
+        saveBtn.disabled = false; saveBtn.textContent = 'Extend & send payment link';
+      }
+    });
+  }
+
+  // ── Add charge ───────────────────────────────────────────────────────────
+  function renderAddCharge(booking, onDone) {
+    mount('tpl-add-charge');
+    root.querySelector('[data-back]').addEventListener('click', onDone);
+    root.querySelector('[data-formtitle]').textContent = `Add charge — ${booking.ref_code}`;
+
+    const typeEl = root.querySelector('[data-type]');
+    const tiresField = root.querySelector('[data-tires-field]');
+    const tiresEl = root.querySelector('[data-tires]');
+    const tonsField = root.querySelector('[data-tons-field]');
+    const tonsEl = root.querySelector('[data-tons]');
+    const descEl = root.querySelector('[data-desc]');
+    const amountEl = root.querySelector('[data-amount]');
+    const methodEl = root.querySelector('[data-method]');
+    const cardNote = root.querySelector('[data-card-note]');
+    const errEl = root.querySelector('[data-error]');
+    const savedEl = root.querySelector('[data-saved]');
+    const saveBtn = root.querySelector('[data-save]');
+
+    const hasCard = !!(booking.stripe_customer_id && booking.stripe_payment_method_id);
+    if (!hasCard) {
+      // No saved card — force payment link.
+      [...methodEl.options].forEach((o) => { if (o.value === 'card_on_file') o.disabled = true; });
+      methodEl.value = 'payment_link';
+      cardNote.hidden = false;
+    }
+
+    const perTireCents = booking.per_tire_cents || 300;
+    let tonnageRateCents = 7500;
+    api.apiFetch('/api/operator/settings').then((d) => {
+      if (d.settings && Number.isInteger(d.settings.tonnage_overage_rate_cents)) {
+        tonnageRateCents = d.settings.tonnage_overage_rate_cents;
+      }
+    }).catch(() => {});
+
+    function syncType() {
+      const t = typeEl.value;
+      tiresField.hidden = t !== 'tires';
+      tonsField.hidden = t !== 'tonnage_overage';
+    }
+    typeEl.addEventListener('change', syncType);
+    syncType();
+
+    tiresEl.addEventListener('input', () => {
+      const n = Math.max(0, parseInt(tiresEl.value, 10) || 0);
+      if (n) amountEl.value = centsToInput(n * perTireCents);
+    });
+    tonsEl.addEventListener('input', () => {
+      const n = Math.max(0, Number(tonsEl.value) || 0);
+      if (n) amountEl.value = centsToInput(Math.round(n * tonnageRateCents));
+    });
+
+    root.querySelector('[data-form]').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errEl.hidden = true; savedEl.hidden = true;
+      const amountCents = inputToCents(amountEl.value);
+      const description = descEl.value.trim() || typeEl.options[typeEl.selectedIndex].text;
+      if (!amountCents || amountCents <= 0) { errEl.textContent = 'Enter a positive amount.'; errEl.hidden = false; return; }
+      const body = {
+        charge_type: typeEl.value,
+        description,
+        amount_cents: amountCents,
+        billing_method: methodEl.value,
+      };
+      if (typeEl.value === 'tonnage_overage' && tonsEl.value) body.weight_tons = Number(tonsEl.value);
+      saveBtn.disabled = true; saveBtn.textContent = 'Adding…';
+      try {
+        await api.apiFetch(`/api/operator/bookings/${booking.id}/charges`, {
+          method: 'POST', body: JSON.stringify(body),
+        });
+        savedEl.textContent = methodEl.value === 'card_on_file'
+          ? 'Charged to the card on file. Customer notified.'
+          : 'Charge added — payment link sent to the customer.';
+        savedEl.hidden = false;
+        saveBtn.textContent = 'Done';
+        setTimeout(onDone, 1200);
+      } catch (err) {
+        if (handleAuth(err)) return;
+        errEl.textContent = err.message || 'Could not add the charge.';
+        errEl.hidden = false;
+        saveBtn.disabled = false; saveBtn.textContent = 'Add charge';
+      }
+    });
+  }
+
+  // ── Settings (admin) ─────────────────────────────────────────────────────
+  async function renderSettings() {
+    mount('tpl-settings');
+    root.querySelector('[data-back]').addEventListener('click', () => renderDashboard());
+    const loadingEl = root.querySelector('[data-loading]');
+    const errEl = root.querySelector('[data-error]');
+    const bodyEl = root.querySelector('[data-body]');
+    const depEl = root.querySelector('[data-deposits-enabled]');
+    const depStatus = root.querySelector('[data-deposits-status]');
+    const tonnageEl = root.querySelector('[data-tonnage]');
+    const saveErr = root.querySelector('[data-save-error]');
+    const savedEl = root.querySelector('[data-saved]');
+    const saveBtn = root.querySelector('[data-save]');
+
+    function paintDepStatus() {
+      depStatus.textContent = depEl.checked
+        ? 'Deposits are ON — customers pay a refundable deposit at booking.'
+        : 'Deposits are OFF — no deposit is collected at booking.';
+    }
+
+    let settings;
+    try {
+      const d = await api.apiFetch('/api/operator/settings');
+      settings = d.settings;
+    } catch (err) {
+      if (handleAuth(err)) return;
+      loadingEl.hidden = true;
+      errEl.textContent = err.message || 'Could not load settings.';
+      errEl.hidden = false;
+      return;
+    }
+    loadingEl.hidden = true;
+    depEl.checked = !!settings.deposits_enabled;
+    tonnageEl.value = centsToInput(settings.tonnage_overage_rate_cents);
+    paintDepStatus();
+    depEl.addEventListener('change', paintDepStatus);
+    bodyEl.hidden = false;
+
+    saveBtn.addEventListener('click', async () => {
+      saveErr.hidden = true; savedEl.hidden = true;
+      const tonnage = inputToCents(tonnageEl.value);
+      if (tonnage == null) { saveErr.textContent = 'Enter a valid tonnage rate.'; saveErr.hidden = false; return; }
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      try {
+        await api.apiFetch('/api/operator/settings', {
+          method: 'PATCH',
+          body: JSON.stringify({ deposits_enabled: depEl.checked, tonnage_overage_rate_cents: tonnage }),
+        });
+        savedEl.hidden = false;
+      } catch (err) {
+        if (handleAuth(err)) return;
+        saveErr.textContent = err.message || 'Could not save settings.';
+        saveErr.hidden = false;
+      } finally {
+        saveBtn.disabled = false; saveBtn.textContent = 'Save settings';
+      }
+    });
   }
 
   // ── Schedule ───────────────────────────────────────────────────────────
@@ -675,10 +1085,18 @@
     { key: 'quantity_on_hold', label: 'Units on hold (maintenance)', kind: 'int' },
   ];
 
+  // Per-trailer security deposit. deposit_cents is NOT NULL in the DB, so an
+  // empty amount must serialize to 0 (zero), never null.
+  const DEPOSIT_FIELDS = [
+    { key: 'deposit_enabled', label: 'Collect deposit for this trailer', kind: 'bool' },
+    { key: 'deposit_cents', label: 'Deposit amount ($)', kind: 'money', zero: true },
+  ];
+
   function fieldsFor(type) {
     return COMMON_FIELDS
       .concat(type === 'dumpster' ? DUMPSTER_FIELDS : TRAILER_FIELDS)
-      .concat(INVENTORY_FIELDS);
+      .concat(INVENTORY_FIELDS)
+      .concat(DEPOSIT_FIELDS);
   }
 
   function renderTrailerDetail(trailer) {
@@ -727,6 +1145,11 @@
       if (f.kind === 'textarea') {
         input = document.createElement('textarea');
         input.rows = 3;
+      } else if (f.kind === 'bool') {
+        input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = !!trailer[f.key];
+        wrap.classList.add('field-check');
       } else {
         input = document.createElement('input');
         input.type = f.kind === 'text' ? 'text' : 'number';
@@ -734,9 +1157,11 @@
         if (f.kind === 'int') { input.step = '1'; input.min = '0'; input.inputMode = 'numeric'; }
       }
       input.id = id;
-      input.value =
-        f.kind === 'money' ? centsToInput(trailer[f.key]) :
-        trailer[f.key] == null ? '' : String(trailer[f.key]);
+      if (f.kind !== 'bool') {
+        input.value =
+          f.kind === 'money' ? centsToInput(trailer[f.key]) :
+          trailer[f.key] == null ? '' : String(trailer[f.key]);
+      }
 
       inputs[f.key] = input;
       wrap.append(label, input);
@@ -750,9 +1175,12 @@
 
       const patch = {};
       for (const f of fields) {
+        if (f.kind === 'bool') { patch[f.key] = inputs[f.key].checked; continue; }
         const raw = inputs[f.key].value;
-        if (f.kind === 'money') patch[f.key] = inputToCents(raw);
-        else if (f.kind === 'int') patch[f.key] = raw.trim() === '' ? null : parseInt(raw, 10);
+        if (f.kind === 'money') {
+          const c = inputToCents(raw);
+          patch[f.key] = c == null && f.zero ? 0 : c;
+        } else if (f.kind === 'int') patch[f.key] = raw.trim() === '' ? null : parseInt(raw, 10);
         else patch[f.key] = raw.trim() === '' ? null : raw.trim();
       }
 
@@ -1589,6 +2017,8 @@
     'booking.create': 'Booking created',
     'booking.paid': 'Booking paid',
     'booking.update': 'Booking status change',
+    'booking.return': 'Return processed',
+    'settings.update': 'Settings changed',
     'trailer.update': 'Trailer/pricing edit',
     'blackout.create': 'Dates blocked',
     'blackout.delete': 'Blackout removed',

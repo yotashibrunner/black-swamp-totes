@@ -586,3 +586,23 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
   font-size: 0.9rem;
   margin: 0;
 }
+
+/* ── Charges & extensions (booking detail) ──────────────────────────── */
+.charge-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.charge-row {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.charge-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.charge-title { font-weight: 600; font-size: 0.9rem; }
+.charge-sub { font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; }
+.charge-tail { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.charge-amt { font-weight: 600; font-size: 0.9rem; }
+
+/* ── Settings / toggles ─────────────────────────────────────────────── */
+.toggle-row { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; cursor: pointer; }
+.toggle-row input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; }
+.field-check { flex-direction: row !important; align-items: center; gap: 10px; }
+.field-check input[type="checkbox"] { width: 20px; height: 20px; }
+.small { font-size: 0.78rem; }
+.kv.totals { margin-top: 10px; }
