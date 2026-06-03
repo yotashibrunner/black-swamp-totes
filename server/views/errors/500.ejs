@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Something went wrong | Black Swamp Totes</title>
+  <link rel="icon" href="/images/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/site.css" />
+  <%- typeof analyticsHead !== 'undefined' ? analyticsHead : '' %>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-head">
+    <div class="site-head-inner">
+      <a class="back" href="/">‹ <span>Home</span></a>
+      <a href="/" aria-label="Black Swamp Totes home"><%- include('../partials/cattail') %></a>
+      <a class="call" href="tel:+14196543584" aria-label="Call Black Swamp Totes">Call</a>
+    </div>
+  </header>
+  <main class="container" id="main">
+    <div style="max-width:560px;margin:64px auto 96px;text-align:center;">
+      <div style="color:var(--green);margin-bottom:16px;display:flex;justify-content:center;">
+        <svg width="48" height="70" viewBox="0 0 52 76" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="4" y="14" width="9" height="24" rx="4.5" fill="currentColor"/><line x1="8.5" y1="38" x2="8.5" y2="63" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <rect x="21" y="2" width="9" height="28" rx="4.5" fill="currentColor"/><line x1="25.5" y1="30" x2="25.5" y2="67" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <rect x="38" y="20" width="9" height="20" rx="4.5" fill="currentColor"/><line x1="42.5" y1="40" x2="42.5" y2="63" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M0 66 C9 62 17 70 26 66 C35 62 43 70 52 66" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".65"/>
+        </svg>
+      </div>
+      <div class="eyebrow" style="justify-content:center;">Error 500</div>
+      <h1 class="display" style="font-size:clamp(48px,12vw,96px);margin:8px 0;">500</h1>
+      <p class="display" style="font-size:clamp(22px,5vw,34px);margin:0 0 14px;">Something went wrong</p>
+      <p class="dim" style="margin:0 auto 28px;max-width:420px;">Something went wrong on our end — please try again or call us.</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <a class="btn btn-primary" href="/" style="width:auto;">Back to homepage</a>
+        <a class="btn btn-ghost" href="tel:+14196543584" style="width:auto;">Call (419) 654-3584</a>
+      </div>
+    </div>
+  </main>
+  <%- include('../partials/footer') %>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rental Agreement — <%= booking.ref_code %> | Glass City Trailer Rentals</title>
+  <title>Rental Agreement — <%= booking.ref_code %> | Black Swamp Totes</title>
   <link rel="icon" href="/images/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,8 +31,8 @@
   <header class="site-head">
     <div class="site-head-inner">
       <a class="back" href="/">‹ <span>Home</span></a>
-      <a href="/"><img class="logo" src="/images/logo.png" alt="Glass City Trailer Rentals" /></a>
-      <a class="call" href="tel:+14196543584" aria-label="Call Glass City Trailer Rentals">Call</a>
+      <a href="/" aria-label="Black Swamp Totes home"><%- include("partials/cattail") %></a>
+      <a class="call" href="tel:+14196543584" aria-label="Call Black Swamp Totes">Call</a>
     </div>
   </header>
 
@@ -95,7 +95,7 @@
         canvas.width = rect.width * ratio;
         canvas.height = rect.height * ratio;
         ctx.scale(ratio, ratio);
-        ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#0a0d0a';
+        ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#0a1a0a';
       }
       function pos(e) {
         var rect = canvas.getBoundingClientRect();

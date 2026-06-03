@@ -12,9 +12,11 @@
 const PDFDocument = require('pdfkit');
 const { formatCents } = require('../utils/money');
 
-const CONTRACT_VERSION = 1;
+const CONTRACT_VERSION = 2;
 const PICKUP_ADDRESS = '4041 Navarre Ave, Oregon, OH 43616';
-const BUSINESS_NAME = 'Glass City Trailer Rentals LLC';
+const BUSINESS_NAME = 'Black Swamp Totes';
+const LOST_BIN_FEE = '$35.00';
+const EXTENSION_RATE = '$0.30 per bin per day';
 
 function fmtDate(value) {
   if (!value) return '—';
@@ -27,6 +29,7 @@ function fmtDate(value) {
 
 // Build the structured agreement for a booking. Pure data — no I/O.
 function buildAgreement({ booking, trailer, customer }) {
+  if (trailer.type === 'bins') return buildBinAgreement({ booking, trailer, customer });
   const isDumpster = trailer.type === 'dumpster';
   const periodLabel = isDumpster
     ? `Roll-off drop-off (${booking.quantity || 0} extra day${booking.quantity === 1 ? '' : 's'} beyond included)`
@@ -120,6 +123,64 @@ function buildAgreement({ booking, trailer, customer }) {
     summary,
     sections,
   };
+}
+
+// Bin rental agreement (Black Swamp Totes). Reusable moving bins, always
+// delivered. ⚠ DRAFT — have an Ohio attorney review before relying on it.
+function buildBinAgreement({ booking, trailer, customer }) {
+  const weeks = booking.quantity || 1;
+  const bins = booking.bin_count || trailer.bin_count || 0;
+  const dollies = booking.dolly_count || trailer.dolly_count || 0;
+  const summary = [
+    { label: 'Reference', value: booking.ref_code },
+    { label: 'Renter', value: customer.name },
+    { label: 'Contact', value: `${customer.phone}${customer.email ? ' · ' + customer.email : ''}` },
+    { label: 'Package', value: `${trailer.name}${trailer.size_label ? ' (' + trailer.size_label + ')' : ''}` },
+    { label: 'Bins / dollies', value: `${bins} bins · ${dollies} doll${dollies === 1 ? 'y' : 'ies'}` },
+    { label: 'Delivery address', value: booking.delivery_address || '—' },
+    ...(booking.pickup_address ? [{ label: 'Pickup address', value: booking.pickup_address }] : []),
+    { label: 'Delivery date', value: fmtDate(booking.start_at) },
+    { label: 'Pickup date', value: fmtDate(booking.end_at) },
+    { label: 'Rental term', value: `${weeks} week${weeks === 1 ? '' : 's'}` },
+    { label: 'Subtotal', value: formatCents(booking.base_amount_cents) },
+    { label: 'Tax', value: formatCents(booking.tax_cents) },
+    { label: 'Total due', value: formatCents(booking.total_cents) },
+  ];
+
+  const sections = [
+    { heading: '1. Rental Period', paragraphs: [
+      `This rental begins on the delivery date and ends on the scheduled pickup date shown above. Extensions are billed at ${EXTENSION_RATE} to the payment method on file. ${BUSINESS_NAME} ("Owner") delivers and picks up the bins at no additional charge.`,
+    ] },
+    { heading: '2. Permitted Use', paragraphs: [
+      'The bins are for household moving purposes only. Prohibited uses include trash disposal, hazardous materials, liquids, and commercial storage beyond the rental period. The Renter shall use the bins in a safe and lawful manner.',
+    ] },
+    { heading: '3. Lost / Damaged Bins', paragraphs: [
+      `Lost or damaged bins (including cracked or broken lids) are charged at ${LOST_BIN_FEE} per bin to the payment method on file. By accepting this agreement, the Renter agrees to this charge. Each bin is tracked by number.`,
+    ] },
+    { heading: '4. Return Condition', paragraphs: [
+      'Bins must be returned empty and reasonably clean. Bins returned with hazardous waste or significant contamination may incur a cleaning fee of up to $50.',
+    ] },
+    { heading: '5. Ownership', paragraphs: [
+      `All bins and dollies remain the property of ${BUSINESS_NAME} at all times. The Renter acquires no ownership interest in the equipment.`,
+    ] },
+    { heading: '6. Payment Authorization', paragraphs: [
+      `The Renter authorizes ${BUSINESS_NAME} to charge the payment method on file for: extension fees, lost or damaged bin fees, and any additional charges arising from this rental.`,
+    ] },
+    { heading: '7. Liability', paragraphs: [
+      `${BUSINESS_NAME} is not responsible for damage to the Renter's belongings during transport. The Renter uses the bins at their own risk and agrees to indemnify and hold the Owner harmless from claims arising out of the Renter's use, to the fullest extent permitted by law.`,
+    ] },
+    { heading: '8. Cancellation', paragraphs: [
+      'Cancellations made 48 or more hours before the scheduled delivery receive a full refund. Cancellations made within 48 hours receive a 50% refund. No-shows and same-day cancellations are non-refundable.',
+    ] },
+    { heading: '9. Governing Law', paragraphs: [
+      'This agreement is governed by the laws of the State of Ohio. Venue for any dispute shall lie exclusively in Lucas County, Ohio.',
+    ] },
+    { heading: '10. Electronic Signature & Consent', paragraphs: [
+      'By typing your name below and checking the consent boxes, you agree to conduct this transaction electronically and you adopt your typed name (and any drawn signature) as your legal electronic signature under the federal E-SIGN Act and the Ohio Uniform Electronic Transactions Act. You confirm that you have read and agree to this agreement, and you consent to receive the signed agreement and related records electronically.',
+    ] },
+  ];
+
+  return { version: CONTRACT_VERSION, title: `${BUSINESS_NAME} — Bin Rental Agreement`, isDumpster: false, isBins: true, summary, sections };
 }
 
 // Flatten the agreement to the exact plain text stored as the immutable

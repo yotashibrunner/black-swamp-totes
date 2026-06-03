@@ -52,7 +52,7 @@ async function runMorning(baseUrl) {
     const t = fmtTime(starts[0].toISOString());
     if (t) firstStr = ` First at ${t}.`;
   }
-  const summary = `Good morning. Today: ${pickups.length} pickups, ${dropoffs.length} deliveries, ${nReturns} returns.${firstStr} — Glass City`;
+  const summary = `Good morning. Today: ${pickups.length} pickups, ${dropoffs.length} deliveries, ${nReturns} returns.${firstStr} — Black Swamp Totes`;
   console.log(`[reminders] ${summary}`);
   await notifySvc.notifyOperatorSummary(summary, baseUrl);
 
@@ -84,7 +84,7 @@ async function remindCustomer(b, kind, baseUrl) {
   await emailSvc.sendBookingReminder(b, kind, baseUrl).catch((e) => console.error('   email:', e.message));
   if (b.customer_phone) {
     const time = fmtTime(b.start_at);
-    const msg = `Glass City reminder: your ${b.trailer_name} ${verb} is tomorrow (${fmtDay(b.start_at)})${time ? ' at ' + time : ''}. Ref ${b.ref_code}. Questions? (419) 654-3584`;
+    const msg = `Black Swamp Totes reminder: your ${b.trailer_name} ${verb} is tomorrow (${fmtDay(b.start_at)})${time ? ' at ' + time : ''}. Ref ${b.ref_code}. Questions? (419) 654-3584`;
     await smsSvc.sendSMS(b.customer_phone, msg).catch((e) => console.error('   sms:', e.message));
   }
 }
@@ -151,7 +151,7 @@ async function runReviewRequests(baseUrl) {
   for (const b of rows) {
     await emailSvc.sendReviewRequest(b, link, baseUrl).catch((e) => console.error('   review email:', e.message));
     if (b.customer_phone) {
-      const msg = `Thanks for renting with Glass City! Hope everything went smoothly. A quick Google review would mean a lot to us: ${link}`;
+      const msg = `Thanks for renting with Black Swamp Totes! Hope everything went smoothly. A quick Google review would mean a lot to us: ${link}`;
       await smsSvc.sendSMS(b.customer_phone, msg).catch((e) => console.error('   review sms:', e.message));
     }
     await pool.query('UPDATE bookings SET review_requested_at = NOW() WHERE id = $1', [b.id])

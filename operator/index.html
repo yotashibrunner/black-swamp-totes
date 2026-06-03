@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Glass City Operator</title>
+  <title>Black Swamp Totes Operator</title>
 
   <!-- PWA -->
   <link rel="manifest" href="/operator/manifest.json" />
-  <meta name="theme-color" content="#0f1115" />
+  <meta name="theme-color" content="#0a1a0a" />
 
   <!-- iOS "Add to Home Screen" support -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -34,7 +34,7 @@
     <div class="screen center">
       <form class="card auth-card" autocomplete="on" novalidate>
         <div class="brand">
-          <img src="/operator/icons/icon-192.png" alt="Glass City Trailer Rentals" width="72" height="72" />
+          <img src="/operator/icons/icon-192.png" alt="Black Swamp Totes" width="72" height="72" />
           <h1>Operator Login</h1>
         </div>
 
@@ -87,7 +87,7 @@
           <span class="nav-icon" aria-hidden="true">🚚</span>
           <span class="nav-text">
             <span class="nav-label">Inventory</span>
-            <span class="nav-sub muted">Trailers, status &amp; pricing</span>
+            <span class="nav-sub muted">Packages, status &amp; pricing</span>
           </span>
           <span class="nav-chevron" aria-hidden="true">›</span>
         </button>
@@ -157,7 +157,7 @@
       <p class="empty" data-dash-empty hidden>Nothing scheduled today, and nothing out.</p>
 
       <section class="card sec sec-pickups" data-section="pickups" hidden>
-        <h2 class="sec-title">Pickups Today <span class="count" data-count="pickups"></span></h2>
+        <h2 class="sec-title">Customer Pickups Today <span class="count" data-count="pickups"></span></h2>
         <ul class="booking-list" data-list="pickups"></ul>
       </section>
 
@@ -167,12 +167,12 @@
       </section>
 
       <section class="card" data-section="retrievals" hidden>
-        <h2>Deliveries — Retrievals Today <span class="count" data-count="retrievals"></span></h2>
+        <h2>Pickups Today <span class="count" data-count="retrievals"></span></h2>
         <ul class="booking-list" data-list="retrievals"></ul>
       </section>
 
       <section class="card" data-section="returns" hidden>
-        <h2>Returns Today <span class="count" data-count="returns"></span></h2>
+        <h2>Customer Returns Today <span class="count" data-count="returns"></span></h2>
         <ul class="booking-list" data-list="returns"></ul>
       </section>
 
@@ -229,13 +229,14 @@
 
         <section class="card">
           <dl class="kv">
-            <div><dt>Trailer</dt><dd data-trailer></dd></div>
-            <div><dt>Fulfillment</dt><dd data-fulfillment></dd></div>
+            <div><dt>Package</dt><dd data-trailer></dd></div>
+            <div data-bins-row hidden><dt>Bins</dt><dd data-bins></dd></div>
             <div><dt>Requested time</dt><dd data-reqtime></dd></div>
             <div data-deliver-row hidden><dt>Deliver to</dt><dd data-deliver></dd></div>
+            <div data-pickupaddr-row hidden><dt>Pick up from</dt><dd data-pickupaddr></dd></div>
             <div data-arrive-row hidden><dt>Customer arriving at</dt><dd data-arrive></dd></div>
-            <div><dt>Pickup</dt><dd data-start></dd></div>
-            <div><dt>Return</dt><dd data-end></dd></div>
+            <div><dt data-start-lbl>Delivery</dt><dd data-start></dd></div>
+            <div><dt data-end-lbl>Pickup</dt><dd data-end></dd></div>
             <div><dt>Total paid</dt><dd data-paid></dd></div>
             <div data-deposit-row hidden><dt>Security deposit</dt><dd data-deposit></dd></div>
             <div data-coupon-row hidden><dt>Discount</dt><dd data-coupon></dd></div>
@@ -356,11 +357,17 @@
           <select data-type>
             <option value="damage">Damage</option>
             <option value="prohibited_items">Prohibited items</option>
+            <option value="lost_bin">Lost / damaged bin ($/bin)</option>
+            <option value="cleaning">Cleaning</option>
+            <option value="late_return">Late return</option>
             <option value="tires">Tires ($/tire)</option>
             <option value="tonnage_overage">Tonnage overage</option>
-            <option value="late_return">Late return</option>
             <option value="other">Other</option>
           </select>
+        </label>
+        <label class="field" data-lostbin-field hidden>
+          <span>Number of bins lost / damaged</span>
+          <input type="number" data-lostbin min="0" step="1" inputmode="numeric" />
         </label>
         <label class="field" data-tires-field hidden>
           <span>Number of tires</span>
@@ -571,11 +578,11 @@
     </li>
   </template>
 
-  <!-- ── Trailer detail view ────────────────────────────────────────── -->
+  <!-- ── Package detail view ────────────────────────────────────────── -->
   <template id="tpl-trailer-detail">
     <header class="topbar">
       <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
-      <span class="topbar-title">Trailer</span>
+      <span class="topbar-title">Bin Package</span>
       <span class="topbar-spacer"></span>
     </header>
 
@@ -583,7 +590,7 @@
       <img class="detail-photo" data-photo alt="" hidden />
 
       <section class="card detail-head">
-        <h2 data-title>Trailer</h2>
+        <h2 data-title>Bin Package</h2>
         <p class="muted" data-typeline></p>
         <div class="status-row">
           <span class="badge" data-badge></span>

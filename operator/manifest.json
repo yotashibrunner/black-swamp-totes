@@ -1,14 +1,14 @@
 {
-  "name": "Glass City Operator",
+  "name": "Black Swamp Totes Operator",
   "short_name": "GC Operator",
-  "description": "Manage Glass City Trailer Rentals bookings, schedule, and inventory from your phone.",
+  "description": "Manage Black Swamp Totes bookings, schedule, and inventory from your phone.",
   "id": "/operator/",
   "start_url": "/operator/",
   "scope": "/operator/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0f1115",
-  "theme_color": "#0f1115",
+  "background_color": "#0a1a0a",
+  "theme_color": "#0a1a0a",
   "icons": [
     {
       "src": "/operator/icons/icon-192.png",

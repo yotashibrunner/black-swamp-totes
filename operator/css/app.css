@@ -1,14 +1,14 @@
-/* Glass City Operator PWA — mobile-first, dark, single-column. */
+/* Black Swamp Totes Operator PWA — mobile-first, dark, single-column. */
 
 :root {
-  --bg: #0f1115;
+  --bg: #0a1a0a;
   --surface: #1a1d24;
   --surface-2: #232733;
   --border: #2c3140;
   --text: #eef1f6;
   --muted: #9aa4b6;
-  --accent: #3da35d;       /* Glass City green */
-  --accent-press: #2f8049;
+  --accent: #22c55e;       /* Black Swamp Totes green */
+  --accent-press: #166534;
   --danger: #e5534b;
   --radius: 14px;
   --maxw: 480px;
@@ -256,7 +256,7 @@ input:focus-visible {
   white-space: nowrap;
   flex-shrink: 0;
 }
-.badge-ok { background: rgba(61, 163, 93, 0.18); color: #6fd58c; }
+.badge-ok { background: rgba(34, 197, 94, 0.18); color: #6fd58c; }
 .badge-oos { background: rgba(229, 83, 75, 0.18); color: #f08a83; }
 
 /* ── Toggle button (full-width footer of each row) ──────────────────── */
@@ -422,7 +422,7 @@ input:focus-visible {
 .day-label { margin: -4px 2px 0; font-weight: 600; }
 
 /* ── Accounts ───────────────────────────────────────────────────────── */
-.badge-role-admin { background: rgba(61, 163, 93, 0.20); color: #6fd58c; }
+.badge-role-admin { background: rgba(34, 197, 94, 0.20); color: #6fd58c; }
 .badge-role-operator { background: rgba(154, 164, 182, 0.18); color: var(--muted); }
 
 .account-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }

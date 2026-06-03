@@ -55,20 +55,20 @@ async function sendBookingConfirmation(booking, pdfBuffer, baseUrl) {
     : `Pickup at 4041 Navarre Ave, Oregon, OH 43616 (7am–7pm)${timeStr ? `, around <strong>${timeStr}</strong>` : ''}.`;
 
   const html = `
-    <div style="font-family:Arial,sans-serif;color:#0a0d0a;max-width:560px">
-      <h2 style="color:#1faa30">Booking confirmed — ${ref}</h2>
-      <p>Hi ${booking.customer_name || 'there'}, your Glass City Trailer Rentals booking is confirmed and paid.</p>
+    <div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:560px">
+      <h2 style="color:#166534">Booking confirmed — ${ref}</h2>
+      <p>Hi ${booking.customer_name || 'there'}, your Black Swamp Totes booking is confirmed and paid.</p>
       <table style="font-size:14px;border-collapse:collapse">${rows}</table>
       <p>${logistics} Your signed rental agreement is attached as a PDF.</p>
-      <p><a href="${baseUrl}/book/${ref}" style="color:#1faa30">View your booking</a></p>
-      <p style="font-size:13px;color:#555">Need to make changes? <a href="${baseUrl}/my-booking?ref=${ref}" style="color:#1faa30">Manage your booking</a> (view details or cancel).</p>
-      <p style="color:#888;font-size:12px">Glass City Trailer Rentals LLC · (419) 654-3584</p>
+      <p><a href="${baseUrl}/book/${ref}" style="color:#166534">View your booking</a></p>
+      <p style="font-size:13px;color:#555">Need to make changes? <a href="${baseUrl}/my-booking?ref=${ref}" style="color:#166534">Manage your booking</a> (view details or cancel).</p>
+      <p style="color:#888;font-size:12px">Black Swamp Totes · (419) 654-3584</p>
     </div>`;
 
   return resend.emails.send({
     from: config.fromEmail,
     to: booking.customer_email,
-    subject: `Your Glass City booking ${ref} is confirmed`,
+    subject: `Your Black Swamp Totes booking ${ref} is confirmed`,
     html,
     attachments: pdfBuffer
       ? [{ filename: `rental-agreement-${ref}.pdf`, content: pdfBuffer }]
@@ -96,16 +96,16 @@ async function sendBookingReminder(booking, kind, baseUrl) {
     : 'Please return to 4041 Navarre Ave, Oregon, OH 43616 (7am–7pm) by end of day to avoid late charges.';
 
   const html = `
-    <div style="font-family:Arial,sans-serif;color:#0a0d0a;max-width:560px">
-      <h2 style="color:#1faa30">Reminder — ${ref}</h2>
+    <div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:560px">
+      <h2 style="color:#166534">Reminder — ${ref}</h2>
       <p>Hi ${booking.customer_name || 'there'}, ${action}</p>
       <table style="font-size:14px;border-collapse:collapse">
         <tr><td style="padding:4px 12px 4px 0;color:#555">Equipment</td><td><strong>${booking.trailer_name}</strong></td></tr>
         <tr><td style="padding:4px 12px 4px 0;color:#555">Reference</td><td>${ref}</td></tr>
       </table>
       <p>${detail}</p>
-      <p><a href="${baseUrl || ''}/book/${ref}" style="color:#1faa30">View your booking</a></p>
-      <p style="color:#888;font-size:12px">Glass City Trailer Rentals LLC · (419) 654-3584</p>
+      <p><a href="${baseUrl || ''}/book/${ref}" style="color:#166534">View your booking</a></p>
+      <p style="color:#888;font-size:12px">Black Swamp Totes · (419) 654-3584</p>
     </div>`;
 
   return resend.emails.send({
@@ -126,11 +126,11 @@ async function sendTest(to) {
     const { data, error } = await resend.emails.send({
       from: config.fromEmail,
       to,
-      subject: 'Glass City — test email ✅',
+      subject: 'Black Swamp Totes — test email ✅',
       html:
-        '<div style="font-family:Arial,sans-serif;color:#0a0d0a;max-width:520px">'
-        + '<h2 style="color:#1faa30">Email is working</h2>'
-        + '<p>This is a test from your Glass City operator app. If it reached you, '
+        '<div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:520px">'
+        + '<h2 style="color:#166534">Email is working</h2>'
+        + '<p>This is a test from your Black Swamp Totes operator app. If it reached you, '
         + 'booking confirmations will send too.</p>'
         + `<p style="color:#888;font-size:12px">Sent from ${config.fromEmail}</p></div>`,
     });
@@ -153,8 +153,8 @@ async function sendStatement(recipients, pdf, statement) {
   const t = statement.totals;
   const td = 'style="padding:4px 14px 4px 0;color:#555"';
   const html = `
-    <div style="font-family:Arial,sans-serif;color:#0a0d0a;max-width:560px">
-      <h2 style="color:#1faa30">Operator statement — ${statement.label}</h2>
+    <div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:560px">
+      <h2 style="color:#166534">Operator statement — ${statement.label}</h2>
       <table style="font-size:14px;border-collapse:collapse">
         <tr><td ${td}>Bookings</td><td>${t.booking_count}</td></tr>
         <tr><td ${td}>Gross revenue</td><td>${t.gross_fmt}</td></tr>
@@ -162,10 +162,10 @@ async function sendStatement(recipients, pdf, statement) {
         <tr><td ${td}>Net revenue</td><td><strong>${t.net_fmt}</strong></td></tr>
         <tr><td ${td}>Commission (${(t.commission_rate * 100).toFixed(0)}%)</td><td>${t.commission_fmt}</td></tr>
         <tr><td ${td}>Retainer (${t.retainer_tier})</td><td>${t.retainer_fmt}</td></tr>
-        <tr><td ${td}><strong>Total due to operator</strong></td><td><strong style="color:#1faa30">${t.total_due_fmt}</strong></td></tr>
+        <tr><td ${td}><strong>Total due to operator</strong></td><td><strong style="color:#166534">${t.total_due_fmt}</strong></td></tr>
       </table>
       <p>The full itemized statement is attached as a PDF.</p>
-      <p style="color:#888;font-size:12px">${'Glass City Trailer Rentals LLC'} · (419) 654-3584</p>
+      <p style="color:#888;font-size:12px">${'Black Swamp Totes'} · (419) 654-3584</p>
     </div>`;
 
   const filename = `glass-city-statement-${statement.year}-${String(statement.month).padStart(2, '0')}.pdf`;
@@ -173,7 +173,7 @@ async function sendStatement(recipients, pdf, statement) {
     const { data, error } = await resend.emails.send({
       from: config.fromEmail,
       to,
-      subject: `Glass City operator statement — ${statement.label}`,
+      subject: `Black Swamp Totes operator statement — ${statement.label}`,
       html,
       attachments: pdf ? [{ filename, content: pdf }] : undefined,
     });
@@ -187,16 +187,16 @@ async function sendStatement(recipients, pdf, statement) {
 // Shared shell so the new transactional emails match the confirmation styling.
 function shell(title, bodyHtml) {
   return `
-    <div style="font-family:Arial,sans-serif;color:#0a0d0a;max-width:560px">
-      <h2 style="color:#1faa30">${title}</h2>
+    <div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:560px">
+      <h2 style="color:#166534">${title}</h2>
       ${bodyHtml}
-      <p style="color:#888;font-size:12px">Glass City Trailer Rentals LLC · (419) 654-3584</p>
+      <p style="color:#888;font-size:12px">Black Swamp Totes · (419) 654-3584</p>
     </div>`;
 }
 
 function payButton(link) {
   if (!link) return '';
-  return `<p><a href="${link}" style="background:#1faa30;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block">Pay now</a></p>`;
+  return `<p><a href="${link}" style="background:#166534;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block">Pay now</a></p>`;
 }
 
 // Notify the customer of a post-rental additional charge (damage, tires, etc.).
@@ -218,7 +218,7 @@ async function sendChargeNotice(booking, charge, paymentLink, baseUrl) {
   return resend.emails.send({
     from: config.fromEmail,
     to: booking.customer_email,
-    subject: `${charge.type_label} charge — Glass City ${booking.ref_code}`,
+    subject: `${charge.type_label} charge — Black Swamp Totes ${booking.ref_code}`,
     html: shell(`Charge added — ${booking.ref_code}`, body),
   });
 }
@@ -241,7 +241,7 @@ async function sendExtensionNotice(booking, extension, paymentLink, newReturnFmt
   return resend.emails.send({
     from: config.fromEmail,
     to: booking.customer_email,
-    subject: `Rental extended to ${newReturnFmt} — Glass City ${booking.ref_code}`,
+    subject: `Rental extended to ${newReturnFmt} — Black Swamp Totes ${booking.ref_code}`,
     html: shell(`Rental extended — ${booking.ref_code}`, body),
   });
 }
@@ -271,7 +271,7 @@ async function sendDepositOutcome(booking, summary, baseUrl) {
   return resend.emails.send({
     from: config.fromEmail,
     to: booking.customer_email,
-    subject: `Return summary — Glass City ${booking.ref_code}`,
+    subject: `Return summary — Black Swamp Totes ${booking.ref_code}`,
     html: shell(`Return processed — ${booking.ref_code}`, body),
   });
 }
@@ -293,7 +293,7 @@ async function sendCancellation(booking, summary, baseUrl) {
   return resend.emails.send({
     from: config.fromEmail,
     to: booking.customer_email,
-    subject: `Booking ${booking.ref_code} cancelled — Glass City`,
+    subject: `Booking ${booking.ref_code} cancelled — Black Swamp Totes`,
     html: shell(`Booking cancelled — ${booking.ref_code}`, body),
   });
 }
@@ -304,16 +304,16 @@ async function sendReviewRequest(booking, reviewLink, baseUrl) {
   if (!resend) return { skipped: true };
   if (!booking.customer_email) return { skipped: true };
   const body = `
-    <p>Hi ${booking.customer_name || 'there'}, thanks for renting the <strong>${booking.trailer_name}</strong> from Glass City Trailer Rentals — we hope everything went smoothly.</p>
+    <p>Hi ${booking.customer_name || 'there'}, thanks for renting the <strong>${booking.trailer_name}</strong> from Black Swamp Totes — we hope everything went smoothly.</p>
     <p>If you have a minute, a quick Google review would mean a lot to a small local business like ours and helps other folks find us.</p>
     ${payButton(reviewLink)}
     <p style="font-size:13px;color:#555">Or paste this link: <a href="${reviewLink}">${reviewLink}</a></p>
-    <p>Need a trailer or dumpster again? <a href="${baseUrl || ''}/" style="color:#1faa30">Book online anytime.</a></p>`;
+    <p>Need a trailer or dumpster again? <a href="${baseUrl || ''}/" style="color:#166534">Book online anytime.</a></p>`;
   return resend.emails.send({
     from: config.fromEmail,
     to: booking.customer_email,
-    subject: 'How did it go? Leave Glass City a quick review',
-    html: shell('Thanks for renting with Glass City!', body),
+    subject: 'How did it go? Leave Black Swamp Totes a quick review',
+    html: shell('Thanks for renting with Black Swamp Totes!', body),
   });
 }
 

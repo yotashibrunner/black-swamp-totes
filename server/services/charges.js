@@ -40,13 +40,14 @@ function depositDueCents(booking, globalEnabled) {
 
 const VALID_CHARGE_TYPES = new Set([
   'damage', 'tonnage_overage', 'prohibited_items', 'tires', 'late_return',
-  'deposit_deduction', 'other',
+  'lost_bin', 'cleaning', 'deposit_deduction', 'other',
 ]);
 
 function chargeTypeLabel(t) {
   return {
     damage: 'Damage', tonnage_overage: 'Tonnage overage', prohibited_items: 'Prohibited items',
-    tires: 'Tires', late_return: 'Late return', deposit_deduction: 'Deposit deduction', other: 'Other',
+    tires: 'Tires', late_return: 'Late return', lost_bin: 'Lost / damaged bin', cleaning: 'Cleaning',
+    deposit_deduction: 'Deposit deduction', other: 'Other',
   }[t] || 'Charge';
 }
 
@@ -169,8 +170,8 @@ async function createCharge(bookingId, body, operatorId) {
   const amountFmt = formatCents(amountCents);
   await query('UPDATE additional_charges SET notified_at = NOW() WHERE id = $1', [charge.id]).catch(() => {});
   const sms = billingMethod === 'card_on_file'
-    ? `Glass City: a ${chargeTypeLabel(chargeType).toLowerCase()} charge of ${amountFmt} was applied to your card on file for rental ${booking.ref_code}. Questions? (419) 654-3584`
-    : `Glass City: a ${chargeTypeLabel(chargeType).toLowerCase()} charge of ${amountFmt} is due for rental ${booking.ref_code}.${paymentLink ? ' Pay here: ' + paymentLink : ''}`;
+    ? `Black Swamp Totes: a ${chargeTypeLabel(chargeType).toLowerCase()} charge of ${amountFmt} was applied to your card on file for rental ${booking.ref_code}. Questions? (419) 654-3584`
+    : `Black Swamp Totes: a ${chargeTypeLabel(chargeType).toLowerCase()} charge of ${amountFmt} is due for rental ${booking.ref_code}.${paymentLink ? ' Pay here: ' + paymentLink : ''}`;
   await notifyCustomer(booking, {
     sms,
     emailFn: () => emailSvc.sendChargeNotice(booking, serializeCharge(charge), paymentLink, config.baseUrl),
@@ -221,8 +222,9 @@ async function createExtension(bookingId, body, operatorId) {
   if (daysExtended <= 0) throw badRequest('The new return date must be after the current one.');
 
   const trailer = await trailerSvc.getTrailerById(booking.trailer_id);
-  if (!trailer) throw badRequest('Trailer not found.', 404);
-  if (trailer.daily_rate == null) throw badRequest('This trailer has no daily rate to extend at.');
+  if (!trailer) throw badRequest('Package not found.', 404);
+  const isBins = trailer.type === 'bins';
+  if (!isBins && trailer.daily_rate == null) throw badRequest('This item has no daily rate to extend at.');
 
   // Availability over the extension window [currentEnd, newEndExclusive): a
   // blackout blocks it, or capacity is full with OTHER bookings overlapping.
@@ -241,9 +243,17 @@ async function createExtension(bookingId, body, operatorId) {
          AND start_at < $5 AND end_at > $4`,
     [trailer.id, bookingId, OCCUPYING_STATUSES, fromIso, toIso]
   );
-  if (overlap.rows[0].n >= cap) throw badRequest('Another booking needs the trailer then — cannot extend.', 409);
+  if (overlap.rows[0].n >= cap) throw badRequest('Another booking needs that package then — cannot extend.', 409);
 
-  const feeCents = trailer.daily_rate * daysExtended;
+  // Bins extend per bin per day ($0.30 default); other items by the daily rate.
+  let feeCents;
+  if (isBins) {
+    const rate = await settingsSvc.extensionRatePerBinCents();
+    const bins = booking.bin_count || trailer.bin_count || 0;
+    feeCents = rate * bins * daysExtended;
+  } else {
+    feeCents = trailer.daily_rate * daysExtended;
+  }
 
   const ins = await query(
     `INSERT INTO rental_extensions
@@ -277,7 +287,7 @@ async function createExtension(bookingId, body, operatorId) {
   const newReturnFmt = newReturn.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
   const feeFmt = formatCents(feeCents);
   await notifyCustomer(booking, {
-    sms: `Glass City: your ${booking.trailer_name} rental is extended to ${newReturnFmt}. Extension fee ${feeFmt} due.${paymentLink ? ' Pay: ' + paymentLink : ''} Ref ${booking.ref_code}`,
+    sms: `Black Swamp Totes: your ${booking.trailer_name} rental is extended to ${newReturnFmt}. Extension fee ${feeFmt} due.${paymentLink ? ' Pay: ' + paymentLink : ''} Ref ${booking.ref_code}`,
     emailFn: () => emailSvc.sendExtensionNotice(booking, serializeExtension(extension), paymentLink, newReturnFmt, config.baseUrl),
   });
 
@@ -442,9 +452,9 @@ async function finalizeReturn(bookingId, condition, operatorId) {
   const lines = deductions.map((d) => `${chargeTypeLabel(d.charge_type)}: ${formatCents(d.amount_cents)}`).join(', ');
   const sms = clean
     ? (deposit > 0
-        ? `Glass City: thanks for returning your ${booking.trailer_name}! Your ${formatCents(deposit)} deposit is being refunded (3–5 business days). Ref ${booking.ref_code}`
-        : `Glass City: thanks for returning your ${booking.trailer_name}! Ref ${booking.ref_code}`)
-    : `Glass City: your ${booking.trailer_name} return is processed. Deductions: ${lines}. ${refundCents > 0 ? `Refund ${formatCents(refundCents)} of your deposit.` : ''}${overageCents > 0 ? ` Additional ${formatCents(overageCents)} charged to your card on file.` : ''} Ref ${booking.ref_code}`;
+        ? `Black Swamp Totes: thanks for returning your ${booking.trailer_name}! Your ${formatCents(deposit)} deposit is being refunded (3–5 business days). Ref ${booking.ref_code}`
+        : `Black Swamp Totes: thanks for returning your ${booking.trailer_name}! Ref ${booking.ref_code}`)
+    : `Black Swamp Totes: your ${booking.trailer_name} return is processed. Deductions: ${lines}. ${refundCents > 0 ? `Refund ${formatCents(refundCents)} of your deposit.` : ''}${overageCents > 0 ? ` Additional ${formatCents(overageCents)} charged to your card on file.` : ''} Ref ${booking.ref_code}`;
   await notifyCustomer(booking, {
     sms,
     emailFn: () => emailSvc.sendDepositOutcome(booking, summary, config.baseUrl),
@@ -530,8 +540,8 @@ async function cancelBooking(ref) {
   const refundFmt = formatCents(totalRefund);
   await notifyCustomer(booking, {
     sms: totalRefund > 0
-      ? `Glass City: your booking ${booking.ref_code} is cancelled. A refund of ${refundFmt} (${policyLabel}) is being processed. Questions? (419) 654-3584`
-      : `Glass City: your booking ${booking.ref_code} is cancelled. Per our policy, no refund applies. Questions? (419) 654-3584`,
+      ? `Black Swamp Totes: your booking ${booking.ref_code} is cancelled. A refund of ${refundFmt} (${policyLabel}) is being processed. Questions? (419) 654-3584`
+      : `Black Swamp Totes: your booking ${booking.ref_code} is cancelled. Per our policy, no refund applies. Questions? (419) 654-3584`,
     emailFn: () => emailSvc.sendCancellation(booking, summary, config.baseUrl),
   });
 

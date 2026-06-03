@@ -1,167 +1,121 @@
 'use strict';
 
-// Seeds the fleet from the data baked into the original marketing site
-// (index.html `const FLEET`). Idempotent: re-running updates rows by slug.
+// Seeds the Black Swamp Totes bin packages. Idempotent: re-running updates rows
+// by slug. Any leftover (non-package) rows are deactivated so they drop off the
+// public site without violating booking foreign keys.
 //
 //   npm run seed
 //
-// All prices are stored in CENTS (no float math anywhere downstream).
+// All prices are stored in CENTS. weekly_rate is per-week for the fixed
+// packages; for the custom package it is the per-bin-per-week rate ($3.50).
 
 const { pool } = require('../server/db');
 
-const d = (dollars) => (dollars == null ? null : Math.round(dollars * 100));
-
-const TRAILERS = [
+const PACKAGES = [
   {
-    slug: 'car-hauler',
-    name: '7×20 Car Hauler / Equipment',
-    type: 'trailer',
-    size_label: '7×20 ft',
-    photo_url: '/images/trailer-car-hauler.jpg',
-    specs: ['Winch', 'Power Tilt', 'Straps + Axle Straps', 'Removable Fenders', 'Spare Tire', 'Adj. Drop Hitch'],
-    hourly_rate: d(25),
-    daily_rate: d(120),
-    weekly_rate: d(600),
-    monthly_rate: d(1800),
-    hitch_requirement: '2 5/16" ball',
-    plug_requirement: '7-pin plug',
-    min_hours: 2,
-    display_order: 1,
+    slug: 'studio-dorm',
+    name: 'Studio / Dorm',
+    size_label: '20 bins + 1 dolly',
+    description: 'Perfect for a studio apartment, single room, or dorm move. 20 large stackable bins and one hand dolly, delivered to your door. No cardboard, no tape, no waste.',
+    weekly_rate: 8900,
+    bin_count: 20, dolly_count: 1, is_custom: false,
+    quantity_total: 10, display_order: 1,
+    specs: ['20 large stackable bins', '1 hand dolly included', 'Free delivery to your door', 'Free pickup when you are done', 'Bins sanitized before every rental'],
   },
   {
-    slug: 'enclosed',
-    name: '6×12 Enclosed Cargo',
-    type: 'trailer',
-    size_label: '6×12 ft',
-    photo_url: '/images/trailer-enclosed.jpg',
-    specs: ['Drop Gate', 'Side Door', 'Straps', 'Spare Tire'],
-    hourly_rate: d(20),
-    daily_rate: d(75),
-    weekly_rate: d(350),
-    monthly_rate: d(1100),
-    hitch_requirement: '2" ball',
-    plug_requirement: '4-pin plug',
-    min_hours: 2,
-    display_order: 2,
+    slug: 'one-two-bedroom',
+    name: '1–2 Bedroom',
+    size_label: '35 bins + 1 dolly',
+    description: 'Our most popular package. Built for 1 and 2 bedroom apartments and houses. 35 large stackable bins and a dolly delivered to your door — everything you need without the cardboard waste.',
+    weekly_rate: 12900,
+    bin_count: 35, dolly_count: 1, is_custom: false,
+    quantity_total: 10, display_order: 2,
+    specs: ['35 large stackable bins', '1 hand dolly included', 'Free delivery to your door', 'Free pickup when you are done', 'Bins sanitized before every rental'],
   },
   {
-    slug: 'dump',
-    name: '7×16×4 Dump Trailer (17 yd)',
-    type: 'trailer',
-    size_label: '7×16×4 ft',
-    photo_url: '/images/trailer-dump.jpg',
-    specs: ['Electric Dump', 'Ramps', 'Net', 'Spare Tire', '17 yd Capacity', 'Adj. Drop Hitch'],
-    hourly_rate: d(30),
-    daily_rate: d(150),
-    weekly_rate: d(650),
-    monthly_rate: d(1950),
-    hitch_requirement: '2 5/16" ball',
-    plug_requirement: '7-pin plug',
-    min_hours: 2,
-    display_order: 3,
+    slug: 'three-four-bedroom',
+    name: '3–4 Bedroom',
+    size_label: '50 bins + 2 dollies',
+    description: 'Built for larger homes. 50 bins and 2 dollies cover a full house move without a single cardboard box. Delivered, picked up, and sanitized — all handled for you.',
+    weekly_rate: 17500,
+    bin_count: 50, dolly_count: 2, is_custom: false,
+    quantity_total: 5, display_order: 3,
+    specs: ['50 large stackable bins', '2 hand dollies included', 'Free delivery to your door', 'Free pickup when you are done', 'Bins sanitized before every rental'],
   },
   {
-    slug: 'utility',
-    name: '6×12 Utility Trailer',
-    type: 'trailer',
-    size_label: '6×12 ft',
-    photo_url: '/images/trailer-utility.jpg',
-    specs: ['Ramp Gate', 'Straps', 'Spare Tire'],
-    hourly_rate: null, // not offered hourly
-    daily_rate: d(50),
-    weekly_rate: d(250),
-    monthly_rate: d(750),
-    hitch_requirement: '2" ball',
-    plug_requirement: '4-pin plug',
-    min_hours: null,
-    display_order: 4,
+    slug: 'student-special',
+    name: 'Student Special',
+    size_label: '25 bins + 1 dolly · 2 weeks',
+    description: 'Built for BGSU and UT Toledo students. 25 bins and a dolly for two full weeks — plenty of time for move-in or move-out. Delivered anywhere in Toledo or Bowling Green.',
+    weekly_rate: 4950,
+    bin_count: 25, dolly_count: 1, is_custom: false,
+    quantity_total: 10, display_order: 4,
+    specs: ['25 large stackable bins', '1 hand dolly included', '2-week rental included', 'Free delivery to your door', 'Free pickup when you are done', 'Perfect for BGSU and UT Toledo students'],
   },
   {
-    slug: 'roll25',
-    name: '25-Yard Roll-Off Bin',
-    type: 'dumpster',
-    size_label: '25 yd',
-    photo_url: '/images/trailer-25yard.jpg',
-    specs: ['Drop-off & pickup included', '25 yd capacity', 'Renovation & cleanout ready'],
-    // Dumpster flat pricing
-    flat_drop_off_cents: d(420),
-    flat_drop_off_days: 3,
-    extra_day_cents: d(25),
-    per_tire_cents: d(3),
-    hitch_requirement: null,
-    plug_requirement: null,
-    description: 'Drop-off & pickup included. 3 days included, $25/extra day, $3/tire if tires found.',
-    display_order: 5,
-    quantity_total: 9, // they own nine 25-yard bins
+    slug: 'custom',
+    name: 'Custom Order',
+    size_label: 'You choose the quantity',
+    description: 'Need an exact number of bins? Order precisely what you need at $3.50 per bin per week. Includes delivery, pickup, and one hand dolly per 25 bins. Minimum 10 bins.',
+    weekly_rate: 350, // per bin per week
+    bin_count: 10, dolly_count: 1, is_custom: true,
+    quantity_total: 50, display_order: 5,
+    specs: ['$3.50 per bin per week', 'Minimum 10 bins', '1 dolly per 25 bins included', 'Free delivery to your door', 'Free pickup when you are done'],
   },
 ];
 
 const UPSERT = `
   INSERT INTO trailers (
-    slug, name, type, size_label, description, photo_url,
-    hourly_rate, daily_rate, weekly_rate, monthly_rate,
-    flat_drop_off_cents, flat_drop_off_days, extra_day_cents, per_tire_cents,
-    hitch_requirement, plug_requirement, min_hours, display_order, specs,
-    quantity_total
+    slug, name, type, size_label, description,
+    weekly_rate, deposit_cents, deposit_enabled,
+    bin_count, dolly_count, is_custom,
+    quantity_total, display_order, specs, active
   ) VALUES (
-    $1, $2, $3, $4, $5, $6,
-    $7, $8, $9, $10,
-    $11, $12, $13, $14,
-    $15, $16, $17, $18, $19::jsonb,
-    $20
+    $1, $2, 'bins', $3, $4,
+    $5, 0, false,
+    $6, $7, $8,
+    $9, $10, $11::jsonb, true
   )
   ON CONFLICT (slug) DO UPDATE SET
     name = EXCLUDED.name,
-    type = EXCLUDED.type,
+    type = 'bins',
     size_label = EXCLUDED.size_label,
     description = EXCLUDED.description,
-    photo_url = EXCLUDED.photo_url,
-    hourly_rate = EXCLUDED.hourly_rate,
-    daily_rate = EXCLUDED.daily_rate,
     weekly_rate = EXCLUDED.weekly_rate,
-    monthly_rate = EXCLUDED.monthly_rate,
-    flat_drop_off_cents = EXCLUDED.flat_drop_off_cents,
-    flat_drop_off_days = EXCLUDED.flat_drop_off_days,
-    extra_day_cents = EXCLUDED.extra_day_cents,
-    per_tire_cents = EXCLUDED.per_tire_cents,
-    hitch_requirement = EXCLUDED.hitch_requirement,
-    plug_requirement = EXCLUDED.plug_requirement,
-    min_hours = EXCLUDED.min_hours,
+    deposit_cents = 0,
+    deposit_enabled = false,
+    bin_count = EXCLUDED.bin_count,
+    dolly_count = EXCLUDED.dolly_count,
+    is_custom = EXCLUDED.is_custom,
+    quantity_total = EXCLUDED.quantity_total,
     display_order = EXCLUDED.display_order,
     specs = EXCLUDED.specs,
-    quantity_total = EXCLUDED.quantity_total,
+    active = true,
     updated_at = NOW()
 `;
 
 async function main() {
-  for (const t of TRAILERS) {
+  const slugs = PACKAGES.map((p) => p.slug);
+  for (const p of PACKAGES) {
     await pool.query(UPSERT, [
-      t.slug,
-      t.name,
-      t.type,
-      t.size_label ?? null,
-      t.description ?? null,
-      t.photo_url ?? null,
-      t.hourly_rate ?? null,
-      t.daily_rate ?? null,
-      t.weekly_rate ?? null,
-      t.monthly_rate ?? null,
-      t.flat_drop_off_cents ?? null,
-      t.flat_drop_off_days ?? null,
-      t.extra_day_cents ?? null,
-      t.per_tire_cents ?? null,
-      t.hitch_requirement ?? null,
-      t.plug_requirement ?? null,
-      t.min_hours ?? null,
-      t.display_order ?? 0,
-      JSON.stringify(t.specs ?? []),
-      t.quantity_total ?? 1,
+      p.slug, p.name, p.size_label, p.description,
+      p.weekly_rate, p.bin_count, p.dolly_count, p.is_custom,
+      p.quantity_total, p.display_order, JSON.stringify(p.specs),
     ]);
-    console.log(`  ✓ ${t.slug} — ${t.name}`);
+    console.log(`  ✓ ${p.slug} — ${p.name}`);
   }
 
-  const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM trailers');
-  console.log(`Seeded fleet. trailers table now has ${rows[0].n} rows.`);
+  // Retire any old (pre-rebrand) inventory so it disappears from the public
+  // site. We deactivate rather than delete to respect booking foreign keys.
+  const { rowCount } = await pool.query(
+    `UPDATE trailers SET active = false, updated_at = NOW()
+      WHERE slug <> ALL($1) AND active = true`,
+    [slugs]
+  );
+  if (rowCount) console.log(`  · deactivated ${rowCount} legacy item(s)`);
+
+  const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM trailers WHERE active = true');
+  console.log(`Seeded packages. ${rows[0].n} active item(s).`);
 }
 
 main()

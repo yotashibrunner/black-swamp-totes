@@ -164,7 +164,7 @@ router.post('/test-sms', requireAdmin, async (req, res, next) => {
     if (!smsSvc.isConfigured()) {
       return res.status(503).json({ error: 'SMS (Twilio) is not configured. Set TWILIO_* in Railway.' });
     }
-    const result = await smsSvc.sendSMS(to, 'Glass City test SMS ✅ — if you got this, alerts work.');
+    const result = await smsSvc.sendSMS(to, 'Black Swamp Totes test SMS ✅ — if you got this, alerts work.');
     if (result.skipped) return res.status(503).json({ error: 'SMS is not configured.' });
     if (result.error) return res.status(502).json({ error: result.error });
     res.json({ ok: true, sid: result.sid, to });
@@ -526,7 +526,7 @@ router.post('/push/test', async (req, res, next) => {
 
     const sub = typeof stored === 'string' ? JSON.parse(stored) : stored;
     const result = await pushSvc.sendToSubscription(sub, {
-      title: 'Glass City — test alert',
+      title: 'Black Swamp Totes — test alert',
       body: 'Push notifications are working on this device. 🎉',
       url: '/operator/',
       tag: 'push-test',

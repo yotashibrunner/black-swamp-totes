@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reserve <%= trailer.name %> | Glass City Trailer Rentals</title>
+  <title>Reserve <%= trailer.name %> | Black Swamp Totes</title>
   <link rel="icon" href="/images/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,8 +16,8 @@
   <header class="site-head">
     <div class="site-head-inner">
       <a class="back" href="<%= isDumpster ? '/book/dumpster' : '/fleet/' + trailer.slug %>">‹ <span>Back</span></a>
-      <a href="/"><img class="logo" src="/images/logo.png" alt="Glass City Trailer Rentals" /></a>
-      <a class="call" href="tel:+14196543584" aria-label="Call Glass City Trailer Rentals">Call</a>
+      <a href="/" aria-label="Black Swamp Totes home"><%- include("partials/cattail") %></a>
+      <a class="call" href="tel:+14196543584" aria-label="Call Black Swamp Totes">Call</a>
     </div>
   </header>
 
@@ -29,7 +29,20 @@
 
         <div class="eyebrow" style="margin:18px 0 10px;">Order Summary</div>
         <div class="quote" style="border-top:0;padding-top:0;">
-          <% if (isDumpster) { %>
+          <% if (isBins) { %>
+            <div class="qrow"><span>Delivery date</span><span><%= selection.start_at %></span></div>
+            <div class="qrow"><span>Pickup date</span><span><%= selection.end_at %></span></div>
+            <div class="qrow"><span>Weeks</span><span><%= quote.weeks || quote.quantity %></span></div>
+            <div class="qrow"><span>Bins</span><span id="sumBins"><%= quote.bin_count %></span></div>
+            <% if (trailer.is_custom) { %>
+            <div class="field-row" style="margin:8px 0;">
+              <div>
+                <label class="fl" for="binQty">How many bins? <span class="dim">(min 10)</span></label>
+                <input type="number" id="binQty" min="10" step="1" value="<%= quote.bin_count %>" inputmode="numeric" />
+              </div>
+            </div>
+            <% } %>
+          <% } else if (isDumpster) { %>
             <div class="qrow"><span>Drop-off date</span><span><%= selection.start_at %></span></div>
             <div class="qrow"><span>Extra days</span><span><%= selection.extra_days %></span></div>
           <% } else { %>
@@ -37,15 +50,23 @@
             <div class="qrow"><span>Return</span><span><%= selection.end_at %></span></div>
             <div class="qrow"><span>Days</span><span><%= quote.quantity %></span></div>
           <% } %>
-          <div class="qrow"><span>Subtotal</span><span><%= fmt(quote.base_cents) %></span></div>
-          <div class="qrow"><span>Tax</span><span><%= fmt(quote.tax_cents) %></span></div>
-          <div class="qrow" id="sumDeliveryRow" hidden><span>Delivery</span><span id="sumDelivery"><%= fmt(deliveryFeeCents) %></span></div>
+          <div class="qrow"><span>Subtotal</span><span id="sumSubtotal"><%= fmt(quote.base_cents) %></span></div>
+          <div class="qrow"><span>Tax</span><span id="sumTax"><%= fmt(quote.tax_cents) %></span></div>
+          <% if (isBins) { %>
+            <div class="qrow"><span>Delivery &amp; pickup</span><span style="color:var(--green)">Free</span></div>
+          <% } else { %>
+            <div class="qrow" id="sumDeliveryRow" hidden><span>Delivery</span><span id="sumDelivery"><%= fmt(deliveryFeeCents) %></span></div>
+          <% } %>
           <div class="qrow" id="sumDiscountRow" hidden><span>Discount <span id="sumCouponCode" class="dim"></span></span><span id="sumDiscount" style="color:var(--green)"></span></div>
           <div class="qtotal">
             <span class="lbl">Total</span>
             <span class="val" id="sumTotal"><%= fmt(quote.total_cents) %></span>
           </div>
-          <p class="qnote">Full balance is charged after you sign the rental agreement. Customer pickup at 4041 Navarre Ave, Oregon — or local delivery for <%= fmt(deliveryFeeCents) %>.</p>
+          <% if (isBins) { %>
+          <p class="qnote">Full balance is charged after you sign the rental agreement. We deliver clean bins to your door and pick them up when you're done — <strong>free</strong>. Extensions are $0.30 per bin per day.</p>
+          <% } else { %>
+          <p class="qnote">Full balance is charged after you sign the rental agreement.</p>
+          <% } %>
 
           <div style="margin-top:14px;">
             <label class="fl" for="couponCode">Have a discount code?</label>
@@ -68,7 +89,7 @@
             <div><label class="fl" for="email">Email <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label><input type="email" id="email" inputmode="email" autocomplete="email" required aria-required="true" /></div>
           </div>
 
-          <div class="step"><label class="fl" for="startTime" id="timeLabel" style="margin:0;"><%= isDumpster ? 'Preferred Drop-off Time' : 'Preferred Pickup Time' %></label></div>
+          <div class="step"><label class="fl" for="startTime" id="timeLabel" style="margin:0;"><%= isBins ? 'Preferred Delivery Time' : (isDumpster ? 'Preferred Drop-off Time' : 'Preferred Pickup Time') %></label></div>
           <div class="field-row">
             <div>
               <select id="startTime">
@@ -85,42 +106,35 @@
                 <option value="17:00">5:00 PM</option>
                 <option value="18:00">6:00 PM</option>
               </select>
-              <p class="qnote" style="margin-top:6px;">Business hours 7am–7pm. We'll confirm the exact time.</p>
+              <p class="qnote" style="margin-top:6px;">Business hours 7am–7pm. We'll confirm the exact window.</p>
             </div>
           </div>
-<% if (!isDumpster) { %>
+<% if (isBins) { %>
+          <div class="step">Delivery</div>
+          <div class="field-row">
+            <div>
+              <label class="fl" for="deliveryAddr">Where should we deliver your bins? <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label>
+              <input type="text" id="deliveryAddr" autocomplete="street-address" placeholder="123 Main St, Toledo, OH 43615" required aria-required="true" />
+            </div>
+          </div>
+          <div class="field-row" style="margin-top:12px;">
+            <div>
+              <label class="fl" for="pickupAddr">Where should we pick up from? <span class="dim">(your new address, if different)</span></label>
+              <input type="text" id="pickupAddr" autocomplete="off" placeholder="Leave blank if same as delivery" />
+            </div>
+          </div>
+<% } else if (!isDumpster) { %>
           <div class="step">Fulfillment</div>
           <div role="radiogroup" aria-label="Fulfillment" style="display:flex;flex-direction:column;gap:8px;">
             <label class="tire-ack" style="color:var(--ink);"><input type="radio" name="fulfillment" value="pickup" checked /> <span>Customer Pickup — <strong>Free</strong></span></label>
             <label class="tire-ack" style="color:var(--ink);"><input type="radio" name="fulfillment" value="delivery" /> <span>Delivery — <strong><%= fmt(deliveryFeeCents) %></strong></span></label>
           </div>
           <div id="addrRow" hidden style="margin-top:12px;">
-            <div class="field-row">
-              <div>
-                <label class="fl" for="addrStreet">Street address <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label>
-                <input type="text" id="addrStreet" autocomplete="address-line1" placeholder="123 Main St" />
-              </div>
-            </div>
-            <div class="field-row two" style="margin-top:12px;">
-              <div>
-                <label class="fl" for="addrCity">City</label>
-                <input type="text" id="addrCity" value="Toledo" autocomplete="address-level2" />
-              </div>
-              <div>
-                <label class="fl" for="addrState">State</label>
-                <input type="text" id="addrState" value="OH" autocomplete="address-level1" />
-              </div>
-            </div>
-            <div class="field-row" style="margin-top:12px;">
-              <div>
-                <label class="fl" for="addrZip">ZIP <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label>
-                <input type="text" id="addrZip" inputmode="numeric" autocomplete="postal-code" placeholder="43616" />
-              </div>
-            </div>
+            <div class="field-row"><div><label class="fl" for="deliveryAddr">Delivery address <span class="req" aria-hidden="true">*</span></label><input type="text" id="deliveryAddr" autocomplete="street-address" placeholder="123 Main St, Toledo, OH 43616" /></div></div>
           </div>
 <% } %>
           <div class="step">Notes</div>
-          <div class="field-row"><div><label class="fl" for="notes">Notes (optional)</label><input type="text" id="notes" placeholder="Anything we should know?" /></div></div>
+          <div class="field-row"><div><label class="fl" for="notes">Notes (optional)</label><input type="text" id="notes" placeholder="Gate code, contactless drop, anything we should know?" /></div></div>
 
           <button class="btn btn-primary" id="continueBtn" type="submit">Continue to Sign →</button>
           <p class="err" id="err" role="alert" aria-live="assertive"></p>
@@ -139,56 +153,68 @@
       var sel = JSON.parse(document.getElementById('selection-data').textContent);
       var el = function (id) { return document.getElementById(id); };
       var form = el('bookForm');
-
-      // Server-authoritative amounts (base + tax) and the flat delivery fee.
-      var BASE_TOTAL = <%= quote.total_cents %>;
-      var DELIVERY_FEE = <%= deliveryFeeCents %>;
-      var TRAILER_ID = '<%= trailer.id %>';
-      var BASE_CENTS = <%= quote.base_cents %>;
-      var coupon = null; // { code, discount_applied_cents, free_delivery }
       function money(c) { return c % 100 === 0 ? '$' + (c / 100) : '$' + (c / 100).toFixed(2); }
 
-      // Discount in cents for the current fulfillment choice.
-      function discountFor(delivery) {
+      var IS_BINS = <%= isBins ? 'true' : 'false' %>;
+      var IS_DUMPSTER = <%= isDumpster ? 'true' : 'false' %>;
+      var IS_CUSTOM = <%= (isBins && trailer.is_custom) ? 'true' : 'false' %>;
+      var TRAILER_ID = '<%= trailer.id %>';
+      var DELIVERY_FEE = <%= deliveryFeeCents %>;
+      var WEEKS = <%= quote.weeks || quote.quantity || 1 %>;
+      var PER_BIN_WK = <%= trailer.weekly_rate || 0 %>;   // custom: per bin per week
+      var TAX_RATE = <%= quote.tax_rate || 0 %>;
+      var FIXED_BASE = <%= quote.base_cents %>;            // non-custom base
+      var coupon = null; // { code, discount_applied_cents, free_delivery }
+
+      // Current pre-tax base (recomputed for the custom package as qty changes).
+      function baseCents() {
+        if (IS_CUSTOM) {
+          var qty = Math.max(10, parseInt(el('binQty') ? el('binQty').value : 0, 10) || 10);
+          return PER_BIN_WK * qty * WEEKS;
+        }
+        return FIXED_BASE;
+      }
+      function deliveryFor() {
+        if (IS_BINS) return 0; // bins delivery is always free
+        var d = document.querySelector('input[name="fulfillment"]:checked');
+        return d && d.value === 'delivery' ? DELIVERY_FEE : 0;
+      }
+      function discountFor(delivery, base) {
         if (!coupon) return 0;
-        if (coupon.free_delivery) return delivery ? DELIVERY_FEE : 0;
+        if (coupon.free_delivery) return delivery > 0 ? delivery : 0;
         return coupon.discount_applied_cents || 0;
       }
 
-      function fulfillment() {
-        var d = document.querySelector('input[name="fulfillment"]:checked');
-        return d ? d.value : 'pickup';
-      }
-
-      var IS_DUMPSTER = <%= isDumpster ? 'true' : 'false' %>;
-
-      // Live: reveal the address fields, swap the time label, and add the
-      // delivery fee to the shown total.
       function refresh() {
-        var delivery = fulfillment() === 'delivery';
-        var addrRow = el('addrRow');
-        if (addrRow) addrRow.hidden = !delivery;
-        var feeRow = el('sumDeliveryRow');
-        if (feeRow) feeRow.hidden = !delivery;
-        var disc = discountFor(delivery);
-        var discRow = el('sumDiscountRow');
-        if (discRow) {
-          discRow.hidden = disc <= 0;
-          if (disc > 0) el('sumDiscount').textContent = '−' + money(disc);
-        }
-        var total = BASE_TOTAL + (delivery ? DELIVERY_FEE : 0) - disc;
+        var base = baseCents();
+        var tax = Math.round(base * TAX_RATE);
+        var delivery = deliveryFor();
+        var disc = discountFor(delivery, base);
+        var total = base + tax + delivery - disc;
         if (total < 0) total = 0;
+        if (el('sumSubtotal')) el('sumSubtotal').textContent = money(base);
+        if (el('sumTax')) el('sumTax').textContent = money(tax);
+        if (el('sumBins') && el('binQty')) el('sumBins').textContent = Math.max(10, parseInt(el('binQty').value, 10) || 10);
+        var feeRow = el('sumDeliveryRow');
+        if (feeRow) feeRow.hidden = delivery <= 0;
+        var discRow = el('sumDiscountRow');
+        if (discRow) { discRow.hidden = disc <= 0; if (disc > 0) el('sumDiscount').textContent = '−' + money(disc); }
         el('sumTotal').textContent = money(total);
         var label = el('timeLabel');
-        if (label) label.textContent = IS_DUMPSTER ? 'Preferred Drop-off Time'
-          : (delivery ? 'Preferred Delivery Time' : 'Preferred Pickup Time');
+        if (label && !IS_BINS) {
+          label.textContent = IS_DUMPSTER ? 'Preferred Drop-off Time' : (delivery > 0 ? 'Preferred Delivery Time' : 'Preferred Pickup Time');
+        }
+        var addrRow = el('addrRow');
+        if (addrRow) addrRow.hidden = delivery <= 0;
       }
+
+      if (el('binQty')) el('binQty').addEventListener('input', refresh);
       Array.prototype.forEach.call(document.querySelectorAll('input[name="fulfillment"]'), function (r) {
         r.addEventListener('change', refresh);
       });
       refresh();
 
-      // Discount code: validate server-side, then reflect in the live total.
+      // Discount code: validate against the current base, reflect in the total.
       el('applyCoupon').addEventListener('click', async function () {
         var code = el('couponCode').value.trim().toUpperCase();
         var msg = el('couponMsg');
@@ -197,23 +223,20 @@
         try {
           var res = await fetch('/api/coupons/validate', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: code, trailer_id: TRAILER_ID, base_amount_cents: BASE_CENTS }),
+            body: JSON.stringify({ code: code, trailer_id: TRAILER_ID, base_amount_cents: baseCents() }),
           });
           var data = await res.json().catch(function () { return {}; });
           if (data && data.valid) {
             coupon = { code: data.code || code, discount_applied_cents: data.discount_applied_cents || 0, free_delivery: !!data.free_delivery };
             el('sumCouponCode').textContent = '(' + coupon.code + ')';
-            msg.style.color = 'var(--green)';
-            msg.textContent = data.message || 'Discount applied.';
+            msg.style.color = 'var(--green)'; msg.textContent = data.message || 'Discount applied.';
           } else {
             coupon = null; el('sumCouponCode').textContent = '';
-            msg.style.color = 'var(--hazard)';
-            msg.textContent = (data && data.message) || 'That code isn’t valid.';
+            msg.style.color = 'var(--hazard)'; msg.textContent = (data && data.message) || 'That code isn’t valid.';
           }
         } catch (e) {
           coupon = null; el('sumCouponCode').textContent = '';
-          msg.style.color = 'var(--hazard)';
-          msg.textContent = 'Could not check that code — try again.';
+          msg.style.color = 'var(--hazard)'; msg.textContent = 'Could not check that code — try again.';
         } finally {
           btn.disabled = false; btn.textContent = label; refresh();
         }
@@ -228,18 +251,28 @@
         if (!name || !phone) { el('err').textContent = 'Name and phone are required.'; return; }
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { el('err').textContent = 'A valid email is required — we send your confirmation and receipt there.'; return; }
 
-        var ful = fulfillment();
-        var address = null;
-        if (ful === 'delivery') {
-          var street = el('addrStreet').value.trim();
-          var city = el('addrCity').value.trim() || 'Toledo';
-          var state = el('addrState').value.trim() || 'OH';
-          var zip = el('addrZip').value.trim();
-          if (!street || !zip) {
-            el('err').textContent = 'Enter the street address and ZIP for delivery, or choose customer pickup.';
-            return;
+        var body = Object.assign({}, sel, {
+          customer: { name: name, phone: phone, email: email },
+          notes: el('notes').value.trim(),
+          start_time: el('startTime').value || null,
+          coupon_code: coupon ? coupon.code : undefined,
+        });
+
+        if (IS_BINS) {
+          var dAddr = el('deliveryAddr').value.trim();
+          if (!dAddr) { el('err').textContent = 'Enter a delivery address — where should we bring your bins?'; return; }
+          body.fulfillment = 'delivery';
+          body.delivery_address = dAddr;
+          body.pickup_address = el('pickupAddr').value.trim() || null;
+          if (IS_CUSTOM) body.bin_quantity = Math.max(10, parseInt(el('binQty').value, 10) || 10);
+        } else {
+          var ful = (document.querySelector('input[name="fulfillment"]:checked') || {}).value || 'pickup';
+          body.fulfillment = ful;
+          if (ful === 'delivery') {
+            var addr = (el('deliveryAddr') || {}).value ? el('deliveryAddr').value.trim() : '';
+            if (!addr) { el('err').textContent = 'Enter a delivery address, or choose customer pickup.'; return; }
+            body.delivery_address = addr;
           }
-          address = street + ', ' + city + ', ' + state + ' ' + zip;
         }
 
         var btn = el('continueBtn');
@@ -247,14 +280,7 @@
         try {
           var res = await fetch('/api/bookings', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Object.assign({}, sel, {
-              customer: { name: name, phone: phone, email: el('email').value.trim() },
-              notes: el('notes').value.trim(),
-              start_time: el('startTime').value || null,
-              fulfillment: ful,
-              delivery_address: ful === 'delivery' ? address : null,
-              coupon_code: coupon ? coupon.code : undefined,
-            })),
+            body: JSON.stringify(body),
           });
           var data = await res.json().catch(function () { return {}; });
           if (!res.ok) throw new Error(data.error || 'Could not create the booking.');

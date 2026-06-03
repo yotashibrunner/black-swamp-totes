@@ -391,14 +391,36 @@
       const trailerLine = [booking.trailer_name, booking.size_label].filter(Boolean).join(' · ');
       root.querySelector('[data-trailer]').textContent = trailerLine;
 
+      const isBins = booking.trailer_type === 'bins';
       const isDelivery = booking.fulfillment === 'delivery';
       const time = booking.time_fmt || null;
-      root.querySelector('[data-fulfillment]').textContent = isDelivery
-        ? `Delivery (${booking.delivery_fee_fmt || '$60'})` : 'Customer pickup';
+      const fEl = root.querySelector('[data-fulfillment]');
+      if (fEl) fEl.textContent = isBins ? 'Delivered (free)' : (isDelivery ? `Delivery (${booking.delivery_fee_fmt || '$60'})` : 'Customer pickup');
       root.querySelector('[data-reqtime]').textContent = time || 'Not specified';
 
-      // Delivery → "Deliver to: <address> at <time>"; pickup → "Customer
-      // arriving at: <time>".
+      // Bins: show bin/dolly counts + a separate pickup address. Labels read
+      // Delivery/Pickup for bins, Pickup/Return for trailers.
+      const binsRow = root.querySelector('[data-bins-row]');
+      if (binsRow) {
+        if (isBins && booking.bin_count) {
+          binsRow.hidden = false;
+          const d = booking.dolly_count || 0;
+          root.querySelector('[data-bins]').textContent = `${booking.bin_count} bins · ${d} doll${d === 1 ? 'y' : 'ies'}`;
+        } else { binsRow.hidden = true; }
+      }
+      const startLbl = root.querySelector('[data-start-lbl]');
+      const endLbl = root.querySelector('[data-end-lbl]');
+      if (startLbl) startLbl.textContent = isBins ? 'Delivery' : 'Pickup';
+      if (endLbl) endLbl.textContent = isBins ? 'Pickup' : 'Return';
+
+      const pickupAddrRow = root.querySelector('[data-pickupaddr-row]');
+      if (pickupAddrRow) {
+        if (booking.pickup_address) {
+          pickupAddrRow.hidden = false;
+          root.querySelector('[data-pickupaddr]').textContent = booking.pickup_address;
+        } else { pickupAddrRow.hidden = true; }
+      }
+
       const deliverRow = root.querySelector('[data-deliver-row]');
       const arriveRow = root.querySelector('[data-arrive-row]');
       if (isDelivery) {
@@ -469,7 +491,7 @@
       const canPickup = canAct && (booking.status === 'paid' || booking.status === 'confirmed');
       const canReturn = canAct && booking.status === 'out';
       pickupBtn.textContent = isDelivery ? 'Mark Delivered' : 'Mark Picked Up';
-      returnBtn.textContent = isDelivery ? 'Mark Retrieved' : 'Mark Returned';
+      returnBtn.textContent = isBins ? 'Mark Picked Up' : (isDelivery ? 'Mark Retrieved' : 'Mark Returned');
       pickupBtn.hidden = !canPickup;
       returnBtn.hidden = !canReturn;
       extendBtn.hidden = !(canAct && booking.status === 'out');
@@ -774,6 +796,8 @@
     root.querySelector('[data-formtitle]').textContent = `Add charge — ${booking.ref_code}`;
 
     const typeEl = root.querySelector('[data-type]');
+    const lostbinField = root.querySelector('[data-lostbin-field]');
+    const lostbinEl = root.querySelector('[data-lostbin]');
     const tiresField = root.querySelector('[data-tires-field]');
     const tiresEl = root.querySelector('[data-tires]');
     const tonsField = root.querySelector('[data-tons-field]');
@@ -796,20 +820,30 @@
 
     const perTireCents = booking.per_tire_cents || 300;
     let tonnageRateCents = 7500;
+    let lostBinFeeCents = 3500;
     api.apiFetch('/api/operator/settings').then((d) => {
       if (d.settings && Number.isInteger(d.settings.tonnage_overage_rate_cents)) {
         tonnageRateCents = d.settings.tonnage_overage_rate_cents;
+      }
+      if (d.settings && Number.isInteger(d.settings.lost_bin_fee_cents)) {
+        lostBinFeeCents = d.settings.lost_bin_fee_cents;
+        lostbinEl.placeholder = `# bins @ ${fmtMoney(lostBinFeeCents)}/ea`;
       }
     }).catch(() => {});
 
     function syncType() {
       const t = typeEl.value;
+      lostbinField.hidden = t !== 'lost_bin';
       tiresField.hidden = t !== 'tires';
       tonsField.hidden = t !== 'tonnage_overage';
     }
     typeEl.addEventListener('change', syncType);
     syncType();
 
+    lostbinEl.addEventListener('input', () => {
+      const n = Math.max(0, parseInt(lostbinEl.value, 10) || 0);
+      if (n) { amountEl.value = centsToInput(n * lostBinFeeCents); descEl.value = `${n} lost / damaged bin${n === 1 ? '' : 's'}`; }
+    });
     tiresEl.addEventListener('input', () => {
       const n = Math.max(0, parseInt(tiresEl.value, 10) || 0);
       if (n) amountEl.value = centsToInput(n * perTireCents);

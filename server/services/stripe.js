@@ -55,8 +55,8 @@ async function createCheckoutSession(booking, { successUrl, cancelUrl, depositCe
         product_data: {
           name: `${booking.trailer_name} — ${booking.ref_code}`,
           description: booking.discount_applied_cents > 0
-            ? 'Glass City Trailer Rentals — rental balance (discount applied)'
-            : 'Glass City Trailer Rentals — rental balance',
+            ? 'Black Swamp Totes — rental balance (discount applied)'
+            : 'Black Swamp Totes — rental balance',
         },
         unit_amount: rentalAmount,
       },

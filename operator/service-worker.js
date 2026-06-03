@@ -15,7 +15,7 @@
  * Bump CACHE_VERSION whenever a shell file changes to force a refresh.
  */
 
-const CACHE_VERSION = 'gc-operator-v15';
+const CACHE_VERSION = 'gc-operator-v16';
 
 // Precache the shell so the app is installable and works offline.
 const SHELL = [
@@ -55,9 +55,9 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch (e) {
-    data = { title: 'Glass City', body: event.data ? event.data.text() : '' };
+    data = { title: 'Black Swamp Totes', body: event.data ? event.data.text() : '' };
   }
-  const title = data.title || 'Glass City Trailer Rentals';
+  const title = data.title || 'Black Swamp Totes';
   const options = {
     body: data.body || '',
     tag: data.tag || undefined,

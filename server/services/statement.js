@@ -6,7 +6,7 @@
 const PDFDocument = require('pdfkit');
 const { formatCents } = require('../utils/money');
 
-const BUSINESS_NAME = 'Glass City Trailer Rentals LLC';
+const BUSINESS_NAME = 'Black Swamp Totes';
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -47,7 +47,7 @@ function generateStatementPdf(statement) {
       kv(`Commission (${(t.commission_rate * 100).toFixed(0)}% of net)`, formatCents(t.commission_cents));
       kv(`Retainer (${t.retainer_tier} tier)`, formatCents(t.retainer_cents));
       doc.moveDown(0.2);
-      doc.font('Helvetica-Bold').fontSize(13).fillColor('#1faa30');
+      doc.font('Helvetica-Bold').fontSize(13).fillColor('#166534');
       kv('TOTAL DUE TO OPERATOR', formatCents(t.total_due_cents), true);
 
       doc.moveDown(0.8);

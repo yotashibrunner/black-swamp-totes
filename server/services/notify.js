@@ -43,7 +43,7 @@ async function notifyNewBooking(booking, baseUrl) {
       tag: `booking-${booking.id}`,
     },
     sms:
-      `Glass City: new booking ${ref}. ${summary}. ` +
+      `Black Swamp Totes: new booking ${ref}. ${summary}. ` +
       `${formatCents(booking.total_cents)} paid. ${booking.customer_phone || ''}`.trim(),
   });
 }
@@ -52,7 +52,7 @@ async function notifyNewBooking(booking, baseUrl) {
 // already-branded summary line — sent verbatim over SMS.
 async function notifyOperatorSummary(text, baseUrl) {
   return dispatch({
-    push: { title: 'Good morning — Glass City', body: text, url: `${baseUrl || ''}/operator/`, tag: 'daily-summary' },
+    push: { title: 'Good morning — Black Swamp Totes', body: text, url: `${baseUrl || ''}/operator/`, tag: 'daily-summary' },
     sms: text,
   });
 }

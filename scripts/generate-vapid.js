@@ -16,5 +16,5 @@ const { publicKey, privateKey } = webpush.generateVAPIDKeys();
 console.log('# Web Push VAPID keys — add these to your environment:\n');
 console.log(`VAPID_PUBLIC_KEY=${publicKey}`);
 console.log(`VAPID_PRIVATE_KEY=${privateKey}`);
-console.log('VAPID_SUBJECT=mailto:owner@glasscitytrailerrentals.com');
+console.log('VAPID_SUBJECT=mailto:owner@blackswamptotes.com');
 console.log('\n# The public key is safe to expose; keep the private key secret.');

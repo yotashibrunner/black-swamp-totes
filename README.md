@@ -1,4 +1,4 @@
-# Glass City Trailer Rentals — Booking Platform
+# Black Swamp Totes — Booking Platform
 
 Full-stack booking + payment + e-signed contract platform: a customer-facing
 site and an operator PWA. Single Express app, single Postgres database, deployed

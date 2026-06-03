@@ -11,6 +11,8 @@ const { query } = require('../db');
 const DEFAULT_TAX_RATE = 0.0725;
 const DEFAULT_DEPOSITS_ENABLED = true;
 const DEFAULT_TONNAGE_RATE_CENTS = 7500; // $75/ton
+const DEFAULT_LOST_BIN_FEE_CENTS = 3500; // $35/bin
+const DEFAULT_EXTENSION_RATE_PER_BIN_CENTS = 30; // $0.30/bin/day
 
 // Read one JSONB setting by key, returning its parsed value or `fallback` when
 // the row is missing or unreadable. Never throws.
@@ -53,21 +55,35 @@ async function tonnageOverageRateCents() {
   return Number.isInteger(v) && v >= 0 ? v : DEFAULT_TONNAGE_RATE_CENTS;
 }
 
+async function intSetting(key, fallback) {
+  const v0 = await getSetting(key, fallback);
+  const v = typeof v0 === 'number' ? v0 : Number(v0);
+  return Number.isInteger(v) && v >= 0 ? v : fallback;
+}
+
+// Lost/damaged bin fee (cents/bin) and the per-bin-per-day extension rate.
+function lostBinFeeCents() { return intSetting('lost_bin_fee_cents', DEFAULT_LOST_BIN_FEE_CENTS); }
+function extensionRatePerBinCents() { return intSetting('extension_rate_per_bin_cents', DEFAULT_EXTENSION_RATE_PER_BIN_CENTS); }
+
 // One round-trip for the Settings screen + checkout: every operator-tunable
 // business setting in one object.
 async function getBusinessSettings() {
-  const [taxRate, deposits, tonnage] = await Promise.all([
+  const [taxRate, deposits, tonnage, lostBin, extRate] = await Promise.all([
     getTaxRate(), depositsEnabled(), tonnageOverageRateCents(),
+    lostBinFeeCents(), extensionRatePerBinCents(),
   ]);
   return {
     tax_rate: taxRate,
     deposits_enabled: deposits,
     tonnage_overage_rate_cents: tonnage,
+    lost_bin_fee_cents: lostBin,
+    extension_rate_per_bin_cents: extRate,
   };
 }
 
 module.exports = {
   getSetting, setSetting,
-  getTaxRate, depositsEnabled, tonnageOverageRateCents, getBusinessSettings,
+  getTaxRate, depositsEnabled, tonnageOverageRateCents,
+  lostBinFeeCents, extensionRatePerBinCents, getBusinessSettings,
   DEFAULT_TAX_RATE, DEFAULT_TONNAGE_RATE_CENTS,
 };

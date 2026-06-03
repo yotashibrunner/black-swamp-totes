@@ -1,8 +1,8 @@
 {
-  "name": "glass-city-rentals",
+  "name": "black-swamp-totes",
   "version": "0.1.0",
   "private": true,
-  "description": "Glass City Trailer Rentals — booking + payment + e-signed contract platform",
+  "description": "Black Swamp Totes — booking + payment + e-signed contract platform",
   "type": "commonjs",
   "engines": {
     "node": ">=22"

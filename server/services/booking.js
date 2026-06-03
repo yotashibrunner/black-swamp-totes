@@ -32,6 +32,15 @@ function resolveWindow(trailer, input) {
     const totalDays = (trailer.flat_drop_off_days || 0) + extraDays;
     return { start: drop, end: addDays(drop, totalDays), periodType: 'roll_off', quantity: extraDays };
   }
+  if (trailer.type === 'bins') {
+    // Bins price by the week: start = delivery date, end = pickup date.
+    const dStart = parseDateOnly(input.start_at);
+    const dEnd = parseDateOnly(input.end_at);
+    if (!dStart || !dEnd || dEnd < dStart) throw badRequest('Valid delivery and pickup dates are required.');
+    const binDays = Math.round((dEnd - dStart) / 86400000) + 1;
+    const weeks = Math.max(1, Math.ceil(binDays / 7));
+    return { start: dStart, end: addDays(dEnd, 1), periodType: 'week', quantity: weeks };
+  }
   if (input.period_type && input.period_type !== 'day') {
     throw badRequest('Online booking currently supports daily rentals. Please call (419) 654-3584 for hourly, weekly, or monthly rentals.');
   }
@@ -96,22 +105,38 @@ async function createBooking(input) {
     end_at: input.end_at,
     extra_days: quantity,
     quantity,
+    bin_quantity: input.bin_quantity,
   });
 
   const isDumpster = trailer.type === 'dumpster';
+  const isBins = trailer.type === 'bins';
   const baseAmount = isDumpster ? trailer.flat_drop_off_cents : quote.base_cents;
   const extraCharges = isDumpster ? quote.base_cents - trailer.flat_drop_off_cents : 0;
   const tireCount = Math.max(0, Math.floor(Number(input.tire_count) || 0));
 
-  // Fulfillment: pickup (free) or delivery (flat fee + required address). The
-  // delivery fee is added on top of base + tax for the charged total.
-  const fulfillment = input.fulfillment === 'delivery' ? 'delivery' : 'pickup';
+  // Bin/dolly counts (from the quote) saved on the booking.
+  const binCount = isBins ? (quote.bin_count || 0) : 0;
+  const dollyCount = isBins ? (quote.dolly_count || 0) : 0;
+
+  // Fulfillment. Bins are ALWAYS delivered (free) — a delivery address is
+  // required and a separate pickup address may be given. Trailers/dumpsters keep
+  // the pickup-or-delivery (flat fee) choice.
+  let fulfillment;
   let deliveryAddress = null;
+  let pickupAddress = null;
   let deliveryFee = 0;
-  if (fulfillment === 'delivery') {
+  if (isBins) {
+    fulfillment = 'delivery';
     deliveryAddress = (input.delivery_address || '').trim();
-    if (!deliveryAddress) throw badRequest('A delivery address is required for delivery.');
-    deliveryFee = DELIVERY_FEE_CENTS;
+    if (!deliveryAddress) throw badRequest('A delivery address is required — where should we bring your bins?');
+    pickupAddress = (input.pickup_address || '').trim() || null;
+  } else {
+    fulfillment = input.fulfillment === 'delivery' ? 'delivery' : 'pickup';
+    if (fulfillment === 'delivery') {
+      deliveryAddress = (input.delivery_address || '').trim();
+      if (!deliveryAddress) throw badRequest('A delivery address is required for delivery.');
+      deliveryFee = DELIVERY_FEE_CENTS;
+    }
   }
 
   // Optional discount code. Resolved + validated server-side (never trusted from
@@ -172,13 +197,13 @@ async function createBooking(input) {
              (ref_code, trailer_id, customer_id, start_at, end_at, period_type, quantity,
               tire_count, base_amount_cents, extra_charges_cents, tax_cents, total_cents,
               customer_notes, status, fulfillment, delivery_address, delivery_fee_cents,
-              coupon_id, discount_applied_cents)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',$14,$15,$16,$17,$18)
+              coupon_id, discount_applied_cents, bin_count, dolly_count, pickup_address)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',$14,$15,$16,$17,$18,$19,$20,$21)
            RETURNING id, ref_code`,
           [ref, trailer.id, customerId, startAt.toISOString(), end.toISOString(), periodType, quantity,
             tireCount, baseAmount, extraCharges, quote.tax_cents, totalCents,
             (input.notes || '').trim() || null, fulfillment, deliveryAddress, deliveryFee,
-            couponId, discountCents]
+            couponId, discountCents, binCount, dollyCount, pickupAddress]
         );
         booking = res.rows[0];
       } catch (e) {
@@ -343,6 +368,7 @@ const OPERATOR_SELECT = `
          b.picked_up_at, b.returned_at, b.customer_notes, b.operator_notes,
          b.contract_signed_at, b.contract_signed_name, b.created_at,
          b.fulfillment, b.delivery_address, b.delivery_fee_cents,
+         b.bin_count, b.dolly_count, b.pickup_address,
          b.deposit_paid_cents, b.deposit_refunded_cents, b.deposit_status,
          b.stripe_customer_id, b.stripe_payment_method_id, b.stripe_payment_intent_id,
          b.coupon_id, b.discount_applied_cents, cp.code AS coupon_code,

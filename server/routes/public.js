@@ -41,12 +41,12 @@ router.get('/accessibility', (req, res) => {
 
 // GET /privacy — privacy policy.
 router.get('/privacy', (req, res) => {
-  res.render('privacy', { updated: todayLong(), ownerEmail: config.ownerEmail || 'glasscitytrailerrentals@gmail.com' });
+  res.render('privacy', { updated: todayLong(), ownerEmail: config.ownerEmail || 'hello@blackswamptotes.com' });
 });
 
 // GET /terms — terms of service.
 router.get('/terms', (req, res) => {
-  res.render('terms', { updated: todayLong(), ownerEmail: config.ownerEmail || 'glasscitytrailerrentals@gmail.com' });
+  res.render('terms', { updated: todayLong(), ownerEmail: config.ownerEmail || 'hello@blackswamptotes.com' });
 });
 
 // GET /my-booking — customer self-service lookup + cancel.
@@ -133,20 +133,27 @@ router.get('/book/new', async (req, res, next) => {
     if (!trailer) return res.redirect('/#fleet');
 
     const isDumpster = trailer.type === 'dumpster';
+    const isBins = trailer.type === 'bins';
     const extraDays = Math.max(0, parseInt(req.query.extra_days, 10) || 0);
     const tireCount = Math.max(0, parseInt(req.query.tire_count, 10) || 0);
+    // Custom bin package: the customer chooses the quantity (min 10).
+    const binQuantity = isBins && trailer.is_custom
+      ? Math.max(10, parseInt(req.query.bin_quantity, 10) || 10)
+      : null;
 
     // A valid selection is required to price the booking; otherwise send the
-    // customer back to choose.
+    // customer back to choose. Bins need both delivery + pickup dates.
     if (isDumpster ? !start : !(start && end)) {
       return res.redirect(isDumpster ? '/book/dumpster' : `/fleet/${trailer.slug}`);
     }
 
+    const periodType = isBins ? 'week' : (isDumpster ? 'roll_off' : 'day');
     let quote;
     try {
       quote = await computeQuote(trailer, {
-        period_type: isDumpster ? 'roll_off' : 'day',
+        period_type: periodType,
         start_at: start, end_at: end, extra_days: extraDays, quantity: extraDays,
+        bin_quantity: binQuantity,
       });
     } catch (e) {
       return res.redirect(isDumpster ? '/book/dumpster' : `/fleet/${trailer.slug}`);
@@ -154,15 +161,16 @@ router.get('/book/new', async (req, res, next) => {
 
     const selection = {
       slug: trailer.slug,
-      period_type: isDumpster ? 'roll_off' : 'day',
+      period_type: periodType,
       start_at: start || null,
       end_at: end || null,
       extra_days: extraDays,
       tire_count: tireCount,
+      bin_quantity: binQuantity,
     };
 
     res.render('book-form', {
-      trailer, quote, selection, isDumpster, fmt: formatCents,
+      trailer, quote, selection, isDumpster, isBins, fmt: formatCents,
       deliveryFeeCents: DELIVERY_FEE_CENTS,
     });
   } catch (err) {
@@ -193,13 +201,13 @@ router.get('/book/:ref/calendar.ics', async (req, res, next) => {
     if (!b) return next();
     const stamp = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     const ics = [
-      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Glass City Trailer Rentals//EN',
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Black Swamp Totes//EN',
       'BEGIN:VEVENT',
-      `UID:${b.ref_code}@glasscitytrailerrentals.com`,
+      `UID:${b.ref_code}@blackswamptotes.com`,
       `DTSTAMP:${stamp(b.created_at)}`,
       `DTSTART:${stamp(b.start_at)}`,
       `DTEND:${stamp(b.end_at)}`,
-      `SUMMARY:Glass City Rental — ${b.trailer_name} (${b.ref_code})`,
+      `SUMMARY:Black Swamp Totes Rental — ${b.trailer_name} (${b.ref_code})`,
       'LOCATION:4041 Navarre Ave, Oregon, OH 43616',
       'END:VEVENT', 'END:VCALENDAR',
     ].join('\r\n');

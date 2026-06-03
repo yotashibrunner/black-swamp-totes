@@ -111,11 +111,7 @@ app.use((req, res) => {
   if (wantsJson(req)) {
     return res.status(404).json({ error: 'Not Found' });
   }
-  res.status(404).render('error', {
-    code: 404,
-    title: 'Page not found',
-    message: "We couldn't find that page — it may have moved or the link may be out of date. Head back home or give us a call.",
-  });
+  res.status(404).render('errors/404');
 });
 
 // --- Centralized error handler ---
@@ -127,17 +123,11 @@ app.use((err, req, res, next) => {
   if (wantsJson(req)) {
     return res.status(status).json({ error: status === 500 ? 'Internal Server Error' : (err.message || 'Error') });
   }
-  res.status(status).render('error', {
-    code: status,
-    title: status === 404 ? 'Page not found' : 'Something went wrong',
-    message: status === 404
-      ? "We couldn't find that page — head back home or give us a call."
-      : 'Something went wrong on our end. Please try again in a moment, or call us directly and we’ll sort it out.',
-  });
+  res.status(status).render(status === 404 ? 'errors/404' : 'errors/500');
 });
 
 const server = app.listen(config.port, () => {
-  console.log(`Glass City Rentals listening on :${config.port} (${config.env})`);
+  console.log(`Black Swamp Totes Rentals listening on :${config.port} (${config.env})`);
   // One-line integration readiness check — handy for diagnosing why an
   // email/SMS/push didn't fire after a deploy.
   const on = (v) => (v ? 'on' : 'OFF');

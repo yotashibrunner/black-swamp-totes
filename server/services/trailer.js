@@ -12,6 +12,7 @@ const PUBLIC_COLUMNS = [
   'flat_drop_off_cents', 'flat_drop_off_days', 'extra_day_cents', 'per_tire_cents',
   'hitch_requirement', 'plug_requirement', 'specs', 'min_hours', 'status',
   'quantity_total', 'quantity_on_hold',
+  'deposit_cents', 'deposit_enabled', 'bin_count', 'dolly_count', 'is_custom',
 ].join(', ');
 
 async function getActiveTrailers() {
