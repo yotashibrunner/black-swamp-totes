@@ -53,7 +53,7 @@
         available = data.status === 'available';
         statusEl.textContent = available
           ? (mode === 'single' ? 'Select your drop-off date.' : 'Select your pickup and return dates.')
-          : 'This item is currently unavailable — call (419) 654-3584.';
+          : 'This item is currently unavailable — call (419) 673-7001.';
       } else {
         statusEl.textContent = 'Could not load availability.';
       }
