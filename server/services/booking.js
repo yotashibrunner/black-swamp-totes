@@ -43,7 +43,7 @@ function resolveWindow(trailer, input) {
     return { start: dStart, end: addDays(dEnd, 1), periodType: 'week', quantity: weeks };
   }
   if (input.period_type && input.period_type !== 'day') {
-    throw badRequest('Online booking currently supports daily rentals. Please call (419) 673-7001 for hourly, weekly, or monthly rentals.');
+    throw badRequest('Online booking currently supports daily rentals. Please call (419) 972-1669 for hourly, weekly, or monthly rentals.');
   }
   const start = parseDateOnly(input.start_at);
   const end = parseDateOnly(input.end_at);

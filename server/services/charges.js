@@ -170,7 +170,7 @@ async function createCharge(bookingId, body, operatorId) {
   const amountFmt = formatCents(amountCents);
   await query('UPDATE additional_charges SET notified_at = NOW() WHERE id = $1', [charge.id]).catch(() => {});
   const sms = billingMethod === 'card_on_file'
-    ? `Black Swamp Totes: a ${chargeTypeLabel(chargeType).toLowerCase()} charge of ${amountFmt} was applied to your card on file for rental ${booking.ref_code}. Questions? (419) 673-7001`
+    ? `Black Swamp Totes: a ${chargeTypeLabel(chargeType).toLowerCase()} charge of ${amountFmt} was applied to your card on file for rental ${booking.ref_code}. Questions? (419) 972-1669`
     : `Black Swamp Totes: a ${chargeTypeLabel(chargeType).toLowerCase()} charge of ${amountFmt} is due for rental ${booking.ref_code}.${paymentLink ? ' Pay here: ' + paymentLink : ''}`;
   await notifyCustomer(booking, {
     sms,
@@ -474,7 +474,7 @@ async function cancelBooking(ref) {
   if (!booking) throw badRequest('Booking not found.', 404);
   if (booking.status === 'cancelled') throw badRequest('This booking is already cancelled.', 409);
   if (!['paid', 'confirmed'].includes(booking.status)) {
-    throw badRequest('This booking can no longer be cancelled online. Please call (419) 673-7001.', 409);
+    throw badRequest('This booking can no longer be cancelled online. Please call (419) 972-1669.', 409);
   }
 
   const now = Date.now();
@@ -540,8 +540,8 @@ async function cancelBooking(ref) {
   const refundFmt = formatCents(totalRefund);
   await notifyCustomer(booking, {
     sms: totalRefund > 0
-      ? `Black Swamp Totes: your booking ${booking.ref_code} is cancelled. A refund of ${refundFmt} (${policyLabel}) is being processed. Questions? (419) 673-7001`
-      : `Black Swamp Totes: your booking ${booking.ref_code} is cancelled. Per our policy, no refund applies. Questions? (419) 673-7001`,
+      ? `Black Swamp Totes: your booking ${booking.ref_code} is cancelled. A refund of ${refundFmt} (${policyLabel}) is being processed. Questions? (419) 972-1669`
+      : `Black Swamp Totes: your booking ${booking.ref_code} is cancelled. Per our policy, no refund applies. Questions? (419) 972-1669`,
     emailFn: () => emailSvc.sendCancellation(booking, summary, config.baseUrl),
   });
 
