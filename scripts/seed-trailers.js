@@ -1,66 +1,27 @@
 'use strict';
 
-// Seeds the Black Swamp Totes bin packages. Idempotent: re-running updates rows
-// by slug. Any leftover (non-package) rows are deactivated so they drop off the
-// public site without violating booking foreign keys.
+// Inventory seed — SaaS TEMPLATE. This ships with a single EXAMPLE package so a
+// fresh deploy has something to show. Replace `PACKAGES` with the real inventory
+// for your business (see SETUP.md → "Add custom inventory"). Idempotent on slug.
 //
 //   npm run seed
 //
-// All prices are stored in CENTS. weekly_rate is per-week for the fixed
-// packages; for the custom package it is the per-bin-per-week rate ($3.50).
+// All prices are stored in CENTS. weekly_rate is per-week; for a "custom"
+// per-unit package, weekly_rate is the per-unit-per-week rate and is_custom=true.
 
 const { pool } = require('../server/db');
 
+// ⬇️ EXAMPLE DATA — replace with your own packages.
 const PACKAGES = [
   {
-    slug: 'studio-dorm',
-    name: 'Studio / Dorm',
-    size_label: '20 bins + 1 dolly',
-    description: 'Perfect for a studio apartment, single room, or dorm move. 20 large stackable bins and one hand dolly, delivered to your door. No cardboard, no tape, no waste.',
-    weekly_rate: 8900,
+    slug: 'example-package',
+    name: 'Example Package',
+    size_label: '20 units + 1 dolly',
+    description: 'Example rental package. Edit scripts/seed-trailers.js to define your real inventory, then run `npm run seed`.',
+    weekly_rate: 8900,           // $89.00 / week
     bin_count: 20, dolly_count: 1, is_custom: false,
     quantity_total: 10, display_order: 1,
-    specs: ['20 large stackable bins', '1 hand dolly included', 'Free delivery to your door', 'Free pickup when you are done', 'Bins sanitized before every rental'],
-  },
-  {
-    slug: 'one-two-bedroom',
-    name: '1–2 Bedroom',
-    size_label: '35 bins + 1 dolly',
-    description: 'Our most popular package. Built for 1 and 2 bedroom apartments and houses. 35 large stackable bins and a dolly delivered to your door — everything you need without the cardboard waste.',
-    weekly_rate: 12900,
-    bin_count: 35, dolly_count: 1, is_custom: false,
-    quantity_total: 10, display_order: 2,
-    specs: ['35 large stackable bins', '1 hand dolly included', 'Free delivery to your door', 'Free pickup when you are done', 'Bins sanitized before every rental'],
-  },
-  {
-    slug: 'three-four-bedroom',
-    name: '3–4 Bedroom',
-    size_label: '50 bins + 2 dollies',
-    description: 'Built for larger homes. 50 bins and 2 dollies cover a full house move without a single cardboard box. Delivered, picked up, and sanitized — all handled for you.',
-    weekly_rate: 17500,
-    bin_count: 50, dolly_count: 2, is_custom: false,
-    quantity_total: 5, display_order: 3,
-    specs: ['50 large stackable bins', '2 hand dollies included', 'Free delivery to your door', 'Free pickup when you are done', 'Bins sanitized before every rental'],
-  },
-  {
-    slug: 'student-special',
-    name: 'Student Special',
-    size_label: '25 bins + 1 dolly · 2 weeks',
-    description: 'Built for BGSU and UT Toledo students. 25 bins and a dolly for two full weeks — plenty of time for move-in or move-out. Delivered anywhere in Toledo or Bowling Green.',
-    weekly_rate: 4950,
-    bin_count: 25, dolly_count: 1, is_custom: false,
-    quantity_total: 10, display_order: 4,
-    specs: ['25 large stackable bins', '1 hand dolly included', '2-week rental included', 'Free delivery to your door', 'Free pickup when you are done', 'Perfect for BGSU and UT Toledo students'],
-  },
-  {
-    slug: 'custom',
-    name: 'Custom Order',
-    size_label: 'You choose the quantity',
-    description: 'Need an exact number of bins? Order precisely what you need at $3.50 per bin per week. Includes delivery, pickup, and one hand dolly per 25 bins. Minimum 10 bins.',
-    weekly_rate: 350, // per bin per week
-    bin_count: 10, dolly_count: 1, is_custom: true,
-    quantity_total: 50, display_order: 5,
-    specs: ['$3.50 per bin per week', 'Minimum 10 bins', '1 dolly per 25 bins included', 'Free delivery to your door', 'Free pickup when you are done'],
+    specs: ['20 units included', '1 dolly included', 'Free delivery & pickup'],
   },
 ];
 
@@ -71,57 +32,40 @@ const UPSERT = `
     bin_count, dolly_count, is_custom,
     quantity_total, display_order, specs, active
   ) VALUES (
-    $1, $2, 'bins', $3, $4,
-    $5, 0, false,
-    $6, $7, $8,
-    $9, $10, $11::jsonb, true
+    $1, $2, $3, $4, $5,
+    $6, 0, false,
+    $7, $8, $9,
+    $10, $11, $12::jsonb, true
   )
   ON CONFLICT (slug) DO UPDATE SET
-    name = EXCLUDED.name,
-    type = 'bins',
-    size_label = EXCLUDED.size_label,
-    description = EXCLUDED.description,
-    weekly_rate = EXCLUDED.weekly_rate,
-    deposit_cents = 0,
-    deposit_enabled = false,
-    bin_count = EXCLUDED.bin_count,
-    dolly_count = EXCLUDED.dolly_count,
-    is_custom = EXCLUDED.is_custom,
-    quantity_total = EXCLUDED.quantity_total,
-    display_order = EXCLUDED.display_order,
-    specs = EXCLUDED.specs,
-    active = true,
-    updated_at = NOW()
+    name = EXCLUDED.name, type = EXCLUDED.type, size_label = EXCLUDED.size_label,
+    description = EXCLUDED.description, weekly_rate = EXCLUDED.weekly_rate,
+    deposit_cents = 0, deposit_enabled = false,
+    bin_count = EXCLUDED.bin_count, dolly_count = EXCLUDED.dolly_count, is_custom = EXCLUDED.is_custom,
+    quantity_total = EXCLUDED.quantity_total, display_order = EXCLUDED.display_order,
+    specs = EXCLUDED.specs, active = true, updated_at = NOW()
 `;
 
 async function main() {
+  const type = process.env.RENTAL_TYPE || 'bins';
   const slugs = PACKAGES.map((p) => p.slug);
   for (const p of PACKAGES) {
     await pool.query(UPSERT, [
-      p.slug, p.name, p.size_label, p.description,
+      p.slug, p.name, type, p.size_label, p.description,
       p.weekly_rate, p.bin_count, p.dolly_count, p.is_custom,
       p.quantity_total, p.display_order, JSON.stringify(p.specs),
     ]);
     console.log(`  ✓ ${p.slug} — ${p.name}`);
   }
-
-  // Retire any old (pre-rebrand) inventory so it disappears from the public
-  // site. We deactivate rather than delete to respect booking foreign keys.
-  const { rowCount } = await pool.query(
-    `UPDATE trailers SET active = false, updated_at = NOW()
-      WHERE slug <> ALL($1) AND active = true`,
+  // Retire anything not in the current set (deactivate, never delete — FK safe).
+  await pool.query(
+    `UPDATE trailers SET active = false, updated_at = NOW() WHERE slug <> ALL($1) AND active = true`,
     [slugs]
   );
-  if (rowCount) console.log(`  · deactivated ${rowCount} legacy item(s)`);
-
   const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM trailers WHERE active = true');
-  console.log(`Seeded packages. ${rows[0].n} active item(s).`);
+  console.log(`Seeded inventory. ${rows[0].n} active item(s).`);
 }
 
 main()
   .then(() => pool.end())
-  .catch((err) => {
-    console.error('Seed failed:', err);
-    pool.end();
-    process.exit(1);
-  });
+  .catch((err) => { console.error('Seed failed:', err); pool.end(); process.exit(1); });

@@ -26,6 +26,19 @@ app.locals.analyticsHead = analytics.headTags();
 app.locals.facebookPixelId = analytics.PIXEL_ID;
 app.locals.siteUrl = config.siteUrl;
 
+// White-label business identity, available to every EJS view (SaaS template).
+app.locals.business = {
+  name: config.businessName,
+  tagline: config.businessTagline,
+  phone: config.businessPhone,
+  email: config.businessEmail,
+  address: config.businessAddress,
+  rentalType: config.rentalType,
+  colorPrimary: config.brandColorPrimary,
+  colorDark: config.brandColorDark,
+  logoSvgUrl: config.logoSvgUrl,
+};
+
 // Stripe webhook needs the raw request body to verify the signature, so it is
 // registered before the JSON body parser. Use type: '*/*' so the raw body is
 // captured regardless of the Content-Type Stripe sends.

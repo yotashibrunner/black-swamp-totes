@@ -101,6 +101,22 @@ const config = {
   // Direct Google review link for the post-return review request (cron). When
   // unset, the review request is skipped.
   googleReviewLink: process.env.GOOGLE_REVIEW_LINK || '',
+
+  // ── White-label business identity (SaaS template) ───────────────────
+  // Drive the brand from env so one codebase serves many rental businesses.
+  // See SETUP.md. BUSINESS_NAME is required in production.
+  businessName: required('BUSINESS_NAME', process.env.BUSINESS_NAME) || 'Rental Co',
+  businessTagline: process.env.BUSINESS_TAGLINE || '',
+  businessPhone: process.env.BUSINESS_PHONE || '',
+  businessEmail: process.env.BUSINESS_EMAIL || process.env.FROM_EMAIL || '',
+  businessAddress: process.env.BUSINESS_ADDRESS || '',
+  // 'bins' | 'trailers' | 'equipment' — selects inventory/booking terminology.
+  rentalType: process.env.RENTAL_TYPE || 'bins',
+  // Brand colors (hex). Injected into the page palette.
+  brandColorPrimary: process.env.BRAND_COLOR_PRIMARY || '#22c55e',
+  brandColorDark: process.env.BRAND_COLOR_DARK || '#0a1a0a',
+  // Optional URL to a logo/mark SVG. When unset, a generic mark is used.
+  logoSvgUrl: process.env.LOGO_SVG_URL || '',
 };
 
 config.isProduction = config.env === 'production';

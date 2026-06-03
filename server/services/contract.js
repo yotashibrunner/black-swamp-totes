@@ -12,9 +12,11 @@
 const PDFDocument = require('pdfkit');
 const { formatCents } = require('../utils/money');
 
+const config = require('../config');
 const CONTRACT_VERSION = 2;
-const PICKUP_ADDRESS = '4041 Navarre Ave, Oregon, OH 43616';
-const BUSINESS_NAME = 'Black Swamp Totes';
+// White-label: business identity comes from env (see SETUP.md).
+const PICKUP_ADDRESS = config.businessAddress || '—';
+const BUSINESS_NAME = config.businessName;
 const LOST_BIN_FEE = '$35.00';
 const EXTENSION_RATE = '$0.30 per bin per day';
 
