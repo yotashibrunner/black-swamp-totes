@@ -159,14 +159,65 @@ async function runReviewRequests(baseUrl) {
   }
 }
 
+// ── Pickup reminder (≈24h before end_at) ──────────────────────────────────
+// Out rentals whose window ends in 23–25h, not yet reminded. Asks the customer
+// to confirm READY (texts back to /webhooks/twilio-inbound) or EXTEND.
+async function runPickupReminders() {
+  const now = Date.now();
+  const from = new Date(now + 23 * 60 * 60000).toISOString();
+  const to = new Date(now + 25 * 60 * 60000).toISOString();
+  const { rows } = await pool.query(
+    `${REMINDER_SELECT}
+      WHERE b.status = 'out' AND b.pickup_reminder_sent_at IS NULL
+        AND b.end_at >= $1 AND b.end_at <= $2`,
+    [from, to]
+  );
+  console.log(`[reminders] ${rows.length} pickup reminder(s)`);
+  for (const b of rows) {
+    if (b.customer_phone) {
+      const name = (b.customer_name || 'there').trim().split(' ')[0];
+      const msg = `Hey ${name}, your Black Swamp Totes bins are due tomorrow. Ready for pickup? Reply READY to confirm or EXTEND to add more time.`;
+      await smsSvc.sendSMS(b.customer_phone, msg).catch((e) => console.error('   pickup reminder sms:', e.message));
+    }
+    await pool.query('UPDATE bookings SET pickup_reminder_sent_at = NOW() WHERE id = $1', [b.id])
+      .catch((e) => console.error('   pickup reminder flag:', e.message));
+  }
+}
+
+// ── Pickup follow-up (at/after end_at, customer hasn't confirmed) ──────────
+// Out rentals already past their end with no READY request yet. Floor at 7 days
+// so pre-existing stale 'out' rows aren't blasted on first run.
+async function runPickupFollowups() {
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  const floor = new Date(now - 7 * 24 * 60 * 60000).toISOString();
+  const { rows } = await pool.query(
+    `${REMINDER_SELECT}
+      WHERE b.status = 'out' AND b.pickup_requested_at IS NULL AND b.pickup_followup_sent_at IS NULL
+        AND b.end_at <= $1 AND b.end_at >= $2`,
+    [nowIso, floor]
+  );
+  console.log(`[reminders] ${rows.length} pickup follow-up(s)`);
+  for (const b of rows) {
+    if (b.customer_phone) {
+      const msg = "Your Black Swamp Totes rental has ended. Reply READY when you're set for pickup.";
+      await smsSvc.sendSMS(b.customer_phone, msg).catch((e) => console.error('   pickup followup sms:', e.message));
+    }
+    await pool.query('UPDATE bookings SET pickup_followup_sent_at = NOW() WHERE id = $1', [b.id])
+      .catch((e) => console.error('   pickup followup flag:', e.message));
+  }
+}
+
 async function main() {
   const mode = process.argv[2] === 'hourly' ? 'hourly' : 'morning';
   const baseUrl = config.baseUrl;
   if (mode === 'hourly') await runHourly(baseUrl);
   else await runMorning(baseUrl);
-  // Review requests run in both modes (idempotent) so a missed hourly run is
-  // still caught by the next pass.
+  // These run in both modes (idempotent via *_sent_at flags) so a missed hourly
+  // run is still caught by the next pass.
   await runReviewRequests(baseUrl);
+  await runPickupReminders();
+  await runPickupFollowups();
   console.log('[reminders] done');
 }
 

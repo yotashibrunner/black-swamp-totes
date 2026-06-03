@@ -156,6 +156,12 @@
 
       <p class="empty" data-dash-empty hidden>Nothing scheduled today, and nothing out.</p>
 
+      <section class="card sec sec-ready" data-section="pickupRequested" hidden>
+        <h2 class="sec-title">✓ Pickup Requested <span class="count" data-count="pickupRequested"></span></h2>
+        <p class="muted" style="margin:0 0 8px;font-size:.82rem;">Customers who texted READY — collect from their pickup address.</p>
+        <ul class="booking-list" data-list="pickupRequested"></ul>
+      </section>
+
       <section class="card sec sec-pickups" data-section="pickups" hidden>
         <h2 class="sec-title">Customer Pickups Today <span class="count" data-count="pickups"></span></h2>
         <ul class="booking-list" data-list="pickups"></ul>
@@ -195,6 +201,7 @@
           <span class="booking-sub muted" data-when></span>
         </span>
         <span class="booking-tail">
+          <span class="badge badge-ready" data-ready hidden>✓ Ready for pickup</span>
           <span class="badge badge-fulfillment" data-fulfillment></span>
           <span class="badge" data-badge></span>
           <span class="booking-phone muted" data-phone></span>
@@ -232,8 +239,9 @@
             <div><dt>Package</dt><dd data-trailer></dd></div>
             <div data-bins-row hidden><dt>Bins</dt><dd data-bins></dd></div>
             <div><dt>Requested time</dt><dd data-reqtime></dd></div>
-            <div data-deliver-row hidden><dt>Deliver to</dt><dd data-deliver></dd></div>
-            <div data-pickupaddr-row hidden><dt>Pick up from</dt><dd data-pickupaddr></dd></div>
+            <div data-deliver-row hidden><dt>📦 Deliver to</dt><dd data-deliver></dd></div>
+            <div data-pickupaddr-row hidden><dt>📬 Pick up from</dt><dd data-pickupaddr></dd></div>
+            <div data-pickupreq-row hidden><dt>Pickup status</dt><dd data-pickupreq></dd></div>
             <div data-arrive-row hidden><dt>Customer arriving at</dt><dd data-arrive></dd></div>
             <div><dt data-start-lbl>Delivery</dt><dd data-start></dd></div>
             <div><dt data-end-lbl>Pickup</dt><dd data-end></dd></div>

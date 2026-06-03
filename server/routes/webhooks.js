@@ -12,9 +12,25 @@ const chargesSvc = require('../services/charges');
 const couponsSvc = require('../services/coupons');
 const emailSvc = require('../services/email');
 const notifySvc = require('../services/notify');
+const pushSvc = require('../services/push');
+const smsSvc = require('../services/sms');
+const config = require('../config');
+const { query } = require('../db');
 const { generatePdf } = require('../services/contract');
 
+const BUSINESS_PHONE = '(419) 673-7001';
+
 const router = express.Router();
+
+// Escape text for inclusion in a TwiML XML body.
+function xmlEscape(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+function twiml(res, message) {
+  res.set('Content-Type', 'text/xml');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>${xmlEscape(message)}</Message></Response>`);
+}
 
 router.post('/stripe', async (req, res) => {
   let event;
@@ -104,6 +120,87 @@ router.post('/stripe', async (req, res) => {
   } catch (err) {
     console.error('[webhook] handler error:', err.message);
     res.status(500).json({ error: 'handler_error' });
+  }
+});
+
+// ── Twilio inbound SMS ──────────────────────────────────────────────────────
+// Register in Twilio: https://blackswamptotes.com/webhooks/twilio-inbound (POST).
+// Customers reply READY (confirm pickup) or EXTEND. The /webhooks mount uses
+// express.raw, so the form-urlencoded body arrives as a Buffer we parse here.
+// Always replies with TwiML so Twilio doesn't retry. Last 10 digits match the
+// customer's phone to their active ('out') booking.
+router.post('/twilio-inbound', async (req, res) => {
+  try {
+    const form = new URLSearchParams(Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body || ''));
+    const from = form.get('From') || '';
+    const body = (form.get('Body') || '').trim();
+    const upper = body.toUpperCase();
+    const last10 = from.replace(/\D/g, '').slice(-10);
+
+    // Audit every inbound message (best-effort).
+    query(
+      `INSERT INTO audit_log (action, entity_type, details)
+       VALUES ('sms.inbound', 'sms', $1)`,
+      [JSON.stringify({ from, body: body.slice(0, 300) })]
+    ).catch((e) => console.error('[twilio] audit failed:', e.message));
+
+    // Find the active rental for this phone (most recent out booking).
+    let booking = null;
+    if (last10) {
+      const { rows } = await query(
+        `SELECT b.id, b.ref_code, b.pickup_address, b.delivery_address, c.name AS customer_name
+           FROM bookings b JOIN customers c ON c.id = b.customer_id
+          WHERE right(regexp_replace(c.phone, '[^0-9]', '', 'g'), 10) = $1
+            AND b.status = 'out'
+          ORDER BY b.end_at DESC LIMIT 1`,
+        [last10]
+      );
+      booking = rows[0] || null;
+    }
+
+    if (!booking) {
+      return twiml(res, `We couldn't find an active rental for this number. Questions? Call us at ${BUSINESS_PHONE}.`);
+    }
+
+    const firstName = (booking.customer_name || 'there').trim().split(' ')[0];
+
+    if (upper.includes('READY')) {
+      await query('UPDATE bookings SET pickup_requested_at = NOW() WHERE id = $1 AND pickup_requested_at IS NULL', [booking.id]);
+      await query(
+        `INSERT INTO audit_log (action, entity_type, entity_id, details)
+         VALUES ('booking.pickup_requested', 'booking', $1, $2)`,
+        [booking.id, JSON.stringify({ via: 'sms', ref: booking.ref_code })]
+      ).catch(() => {});
+
+      // Notify operators (push + SMS), best-effort.
+      const baseUrl = config.baseUrl || '';
+      const pickupAddr = booking.pickup_address || booking.delivery_address || '(address on file)';
+      const opBody = `${booking.customer_name} is ready for pickup.\nAddress: ${pickupAddr}\nBooking: ${booking.ref_code}`;
+      try {
+        await pushSvc.sendToOperators({
+          title: '✓ Ready for pickup',
+          body: opBody,
+          url: `${baseUrl}/operator/?booking=${booking.id}`,
+          tag: `pickup-${booking.id}`,
+        });
+      } catch (e) { console.error('[twilio] operator push failed:', e.message); }
+      try {
+        await smsSvc.notifyOperators(`${opBody}\nOpen: ${baseUrl}/operator`);
+      } catch (e) { console.error('[twilio] operator sms failed:', e.message); }
+
+      return twiml(res, `Got it ${firstName}! We'll be in touch shortly to confirm a pickup time.`);
+    }
+
+    if (upper.includes('EXTEND')) {
+      return twiml(res, `No problem! Extensions are $0.30 per bin per day. How many extra days do you need? Or manage your booking at blackswamptotes.com/my-booking`);
+    }
+
+    // Recognized number but unrecognized command.
+    return twiml(res, `Thanks ${firstName}! Reply READY to confirm pickup, or EXTEND to add more time. Questions? Call ${BUSINESS_PHONE}.`);
+  } catch (err) {
+    console.error('[twilio] inbound handler error:', err.message);
+    // Still return valid TwiML so Twilio doesn't retry-storm.
+    return twiml(res, 'Thanks for your message — we’ll follow up shortly.');
   }
 });
 

@@ -368,7 +368,7 @@ const OPERATOR_SELECT = `
          b.picked_up_at, b.returned_at, b.customer_notes, b.operator_notes,
          b.contract_signed_at, b.contract_signed_name, b.created_at,
          b.fulfillment, b.delivery_address, b.delivery_fee_cents,
-         b.bin_count, b.dolly_count, b.pickup_address,
+         b.bin_count, b.dolly_count, b.pickup_address, b.pickup_requested_at,
          b.deposit_paid_cents, b.deposit_refunded_cents, b.deposit_status,
          b.stripe_customer_id, b.stripe_payment_method_id, b.stripe_payment_intent_id,
          b.coupon_id, b.discount_applied_cents, cp.code AS coupon_code,

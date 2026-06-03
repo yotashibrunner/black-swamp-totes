@@ -165,6 +165,10 @@
     node.querySelector('[data-phone]').textContent = b.customer_phone || '';
     paintBookingBadge(node.querySelector('[data-badge]'), b.status);
 
+    // Customer texted READY → green pill.
+    const readyEl = node.querySelector('[data-ready]');
+    if (readyEl && b.pickup_requested_at) readyEl.hidden = false;
+
     // PICKUP / DELIVERY badge (+ address line for deliveries).
     const isDelivery = b.fulfillment === 'delivery';
     const fb = node.querySelector('[data-fulfillment]');
@@ -342,11 +346,22 @@
       const data = await api.apiFetch('/api/operator/dashboard');
       const u = data.user || cached || {};
       welcome.textContent = `Signed in as ${u.name || u.email || 'operator'}.`;
-      const keys = ['pickups', 'dropoffs', 'retrievals', 'returns', 'active'];
+      // Bookings where the customer has texted READY (any active rental).
+      const pickupRequested = (data.active || []).filter((b) => b.pickup_requested_at);
+      // Within "Pickups Today", float READY ones to the top.
+      const retrievals = (data.retrievals || []).slice().sort(
+        (a, b) => (b.pickup_requested_at ? 1 : 0) - (a.pickup_requested_at ? 1 : 0)
+      );
+      const sections = {
+        pickupRequested, pickups: data.pickups, dropoffs: data.dropoffs,
+        retrievals, returns: data.returns, active: data.active,
+      };
+      const keys = ['pickupRequested', 'pickups', 'dropoffs', 'retrievals', 'returns', 'active'];
       let total = 0;
-      for (const k of keys) total += paintSection(k, data[k] || []) || 0;
-      // When the whole day is empty, show a single friendly line.
-      root.querySelector('[data-dash-empty]').hidden = total > 0;
+      for (const k of keys) total += paintSection(k, sections[k] || []) || 0;
+      // "Pickup Requested" is a cross-cut of active, so don't let it inflate the
+      // empty-day check (active already counts those bookings).
+      root.querySelector('[data-dash-empty]').hidden = (total - pickupRequested.length) > 0;
     } catch (err) {
       if (handleAuth(err)) return;
       errEl.textContent = 'Could not reach the server. Try again when back online.';
@@ -419,6 +434,16 @@
           pickupAddrRow.hidden = false;
           root.querySelector('[data-pickupaddr]').textContent = booking.pickup_address;
         } else { pickupAddrRow.hidden = true; }
+      }
+
+      // Pickup-confirmation status (customer texted READY).
+      const pickupReqRow = root.querySelector('[data-pickupreq-row]');
+      if (pickupReqRow) {
+        if (booking.pickup_requested_at && booking.status === 'out') {
+          pickupReqRow.hidden = false;
+          root.querySelector('[data-pickupreq]').textContent =
+            `✓ Customer confirmed READY (${fmtDateTime(booking.pickup_requested_at)})`;
+        } else { pickupReqRow.hidden = true; }
       }
 
       const deliverRow = root.querySelector('[data-deliver-row]');
