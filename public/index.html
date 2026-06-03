@@ -57,8 +57,8 @@
 
   /* HERO */
   .hero{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;}
-  .hero::before{content:"";position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80&fit=crop') center/cover no-repeat;z-index:-2;}
-  .hero::after{content:"";position:absolute;inset:0;background:rgba(10,26,10,.75);z-index:-1;}
+  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(1000px 700px at 78% 12%,rgba(34,197,94,.28),transparent 60%),radial-gradient(820px 600px at 12% 92%,rgba(22,101,52,.38),transparent 62%),linear-gradient(160deg,#0d2412,#0a1a0a 62%);z-index:-2;}
+  .hero::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(circle at 50% 35%,#000 28%,transparent 78%);mask-image:radial-gradient(circle at 50% 35%,#000 28%,transparent 78%);z-index:-1;}
   .hero-in{max-width:820px;padding:120px 24px 80px;}
   .hero h1{font-size:clamp(42px,8vw,72px);font-weight:800;line-height:1.05;letter-spacing:-.03em;margin:18px 0;}
   .hero p.lead{font-size:clamp(17px,2.2vw,20px);color:rgba(255,255,255,.72);max-width:640px;margin:0 auto 34px;}
@@ -114,9 +114,9 @@
   .eco ul{list-style:none;margin:26px 0;display:flex;flex-direction:column;gap:14px;}
   .eco li{display:flex;gap:12px;align-items:flex-start;font-weight:600;}
   .eco li .ck{color:var(--lily);font-weight:900;flex-shrink:0;}
-  .eco-img{position:relative;border-radius:24px;overflow:hidden;transform:rotate(2deg);box-shadow:0 30px 70px -30px rgba(0,0,0,.7);}
-  .eco-img img{width:100%;height:460px;object-fit:cover;}
-  .eco-img::after{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(34,197,94,.35),rgba(22,101,52,.25));}
+  .eco-img{position:relative;border-radius:24px;overflow:hidden;transform:rotate(2deg);box-shadow:0 30px 70px -30px rgba(0,0,0,.7);background:linear-gradient(155deg,#1aa052,#0e5429);min-height:460px;display:flex;align-items:center;justify-content:center;}
+  .eco-img svg{width:58%;max-width:300px;color:#fff;filter:drop-shadow(0 16px 30px rgba(0,0,0,.35));}
+  .eco-img::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 28% 18%,rgba(255,255,255,.18),transparent 55%);pointer-events:none;}
 
   /* SERVICE AREA */
   .pills{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:34px;}
@@ -132,8 +132,13 @@
   .student h2{font-size:clamp(34px,5.5vw,58px);font-weight:900;letter-spacing:-.03em;margin:14px 0;}
   .student p{font-size:18px;color:#0c2a14;max-width:520px;}
   .student .note{font-size:14px;color:#0c2a14;opacity:.8;margin-top:18px;}
-  .student-img{border-radius:24px;overflow:hidden;box-shadow:0 30px 70px -30px rgba(0,0,0,.45);}
-  .student-img img{width:100%;height:420px;object-fit:cover;}
+  .student-img{border-radius:24px;box-shadow:0 30px 70px -30px rgba(0,0,0,.45);background:linear-gradient(160deg,#0a1a0a,#13311a);color:#fff;padding:48px 42px;min-height:420px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;}
+  .student-img .tag{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--lily);font-weight:800;}
+  .student-img .big{font-size:clamp(64px,9vw,92px);font-weight:900;line-height:1;letter-spacing:-.04em;margin:6px 0 4px;}
+  .student-img .small{color:rgba(255,255,255,.82);font-weight:600;}
+  .student-img ul{list-style:none;margin-top:18px;display:flex;flex-direction:column;gap:9px;}
+  .student-img li{color:rgba(255,255,255,.85);padding-left:24px;position:relative;font-size:15px;}
+  .student-img li::before{content:"✓";position:absolute;left:0;color:var(--lily);font-weight:900;}
 
   /* TESTIMONIAL */
   .quote-mark{font-size:90px;line-height:.6;color:var(--lily);font-weight:900;font-family:Georgia,serif;}
@@ -293,8 +298,18 @@
         </ul>
         <a class="btn btn-outline-white" href="#packages">See our packages</a>
       </div>
-      <div class="eco-img" data-aos="fade-left">
-        <img src="https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&q=80&fit=crop" alt="Reusable moving bins" loading="lazy" />
+      <div class="eco-img" data-aos="fade-left" role="img" aria-label="Stack of reusable moving bins">
+        <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <!-- three stacked bins with lids -->
+          <g stroke="currentColor" stroke-width="5" stroke-linejoin="round">
+            <rect x="46" y="120" width="108" height="58" rx="8" fill="rgba(255,255,255,.10)"/>
+            <rect x="40" y="110" width="120" height="14" rx="6" fill="rgba(255,255,255,.22)"/>
+            <rect x="54" y="74" width="92" height="46" rx="8" fill="rgba(255,255,255,.14)"/>
+            <rect x="48" y="64" width="104" height="13" rx="6" fill="rgba(255,255,255,.26)"/>
+            <rect x="62" y="34" width="76" height="40" rx="8" fill="rgba(255,255,255,.18)"/>
+            <rect x="56" y="25" width="88" height="12" rx="6" fill="rgba(255,255,255,.30)"/>
+          </g>
+        </svg>
       </div>
     </div>
   </div></section>
@@ -322,7 +337,14 @@
         <p class="note">Available in Bowling Green and Toledo. Perfect for August move-in and May move-out.</p>
       </div>
       <div class="student-img" data-aos="fade-left">
-        <img src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&q=80&fit=crop" alt="University students" loading="lazy" />
+        <span class="tag">Student Special</span>
+        <div class="big">$99</div>
+        <div class="small">25 bins · 1 dolly · 2 full weeks</div>
+        <ul>
+          <li>Delivered to your dorm or apartment</li>
+          <li>Picked up from your new place</li>
+          <li>Free delivery &amp; pickup included</li>
+        </ul>
       </div>
     </div>
   </div></section>
