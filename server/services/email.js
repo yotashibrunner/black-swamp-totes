@@ -168,7 +168,7 @@ async function sendStatement(recipients, pdf, statement) {
       <p style="color:#888;font-size:12px">${'Black Swamp Totes'} · (419) 673-7001</p>
     </div>`;
 
-  const filename = `glass-city-statement-${statement.year}-${String(statement.month).padStart(2, '0')}.pdf`;
+  const filename = `black-swamp-totes-statement-${statement.year}-${String(statement.month).padStart(2, '0')}.pdf`;
   try {
     const { data, error } = await resend.emails.send({
       from: config.fromEmail,

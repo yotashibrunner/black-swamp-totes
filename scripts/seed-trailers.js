@@ -8,7 +8,11 @@
 //
 // All prices are stored in CENTS. weekly_rate is per-week; for a "custom"
 // per-unit package, weekly_rate is the per-unit-per-week rate and is_custom=true.
+//
+// Run with: railway run --service <your-service> node scripts/seed-trailers.js
+// Or from the Railway dashboard: Shell tab > run command
 
+require('./_db-guard')('seed-trailers.js');
 const { pool } = require('../server/db');
 
 // ⬇️ EXAMPLE DATA — replace with your own packages.
