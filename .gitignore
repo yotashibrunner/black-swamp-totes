@@ -10,3 +10,6 @@ npm-debug.log*
 # OS / editor cruft
 .DS_Store
 Thumbs.db
+
+# one-off secret-bearing scripts
+scripts/reset-password.js
