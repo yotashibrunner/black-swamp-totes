@@ -38,7 +38,8 @@ function resolveWindow(trailer, input) {
     const dEnd = parseDateOnly(input.end_at);
     if (!dStart || !dEnd || dEnd < dStart) throw badRequest('Valid delivery and pickup dates are required.');
     const binDays = Math.round((dEnd - dStart) / 86400000) + 1;
-    const weeks = Math.max(1, Math.ceil(binDays / 7));
+    // Complete weeks only; extra days are billed at the extension rate in pricing.
+    const weeks = Math.max(1, Math.floor(binDays / 7));
     return { start: dStart, end: addDays(dEnd, 1), periodType: 'week', quantity: weeks };
   }
   if (input.period_type && input.period_type !== 'day') {

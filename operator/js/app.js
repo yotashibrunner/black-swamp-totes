@@ -45,6 +45,34 @@
     return c % 100 === 0 ? `$${c / 100}` : `$${(c / 100).toFixed(2)}`;
   }
 
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  // A tappable Google Maps link for an address (opens directions/search).
+  function mapsLink(address) {
+    if (!address) return '';
+    const url = 'https://maps.google.com/?q=' + encodeURIComponent(address);
+    return `<a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">${escapeHtml(address)}</a>`;
+  }
+
+  // Brief bottom toast.
+  function toast(msg) {
+    let el = document.getElementById('gc-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'gc-toast';
+      el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0a1a0a;color:#fff;'
+        + 'padding:12px 18px;border-radius:10px;font-size:14px;z-index:9999;box-shadow:0 10px 30px -8px rgba(0,0,0,.6);'
+        + 'max-width:90%;text-align:center;opacity:0;transition:opacity .2s;';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    requestAnimationFrame(() => { el.style.opacity = '1'; });
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.style.opacity = '0'; }, 2600);
+  }
+
   // Short pricing summary for list rows.
   function priceSummary(t) {
     if (t.type === 'dumpster') {
@@ -362,6 +390,22 @@
       // "Pickup Requested" is a cross-cut of active, so don't let it inflate the
       // empty-day check (active already counts those bookings).
       root.querySelector('[data-dash-empty]').hidden = (total - pickupRequested.length) > 0;
+
+      // Plan Today's Route — deliveries (drop-off addresses) then pickups
+      // (collection addresses) as a Google Maps multi-stop directions link.
+      const routeBtn = root.querySelector('[data-plan-route]');
+      if (routeBtn) {
+        routeBtn.addEventListener('click', () => {
+          const deliveryAddresses = (data.dropoffs || []).map((b) => b.delivery_address);
+          const pickupAddresses = (data.retrievals || []).map((b) => b.pickup_address || b.delivery_address);
+          const stops = [...deliveryAddresses, ...pickupAddresses]
+            .filter(Boolean)
+            .map((a) => encodeURIComponent(a))
+            .join('/');
+          if (!stops) { toast('No deliveries or pickups scheduled today'); return; }
+          window.open('https://www.google.com/maps/dir/' + stops, '_blank');
+        });
+      }
     } catch (err) {
       if (handleAuth(err)) return;
       errEl.textContent = 'Could not reach the server. Try again when back online.';
@@ -432,7 +476,7 @@
       if (pickupAddrRow) {
         if (booking.pickup_address) {
           pickupAddrRow.hidden = false;
-          root.querySelector('[data-pickupaddr]').textContent = booking.pickup_address;
+          root.querySelector('[data-pickupaddr]').innerHTML = mapsLink(booking.pickup_address);
         } else { pickupAddrRow.hidden = true; }
       }
 
@@ -452,7 +496,7 @@
         deliverRow.hidden = false;
         arriveRow.hidden = true;
         const addr = booking.delivery_address || '(no address)';
-        root.querySelector('[data-deliver]').textContent = time ? `${addr} at ${time}` : addr;
+        root.querySelector('[data-deliver]').innerHTML = mapsLink(addr) + (time ? ` at ${escapeHtml(time)}` : '');
       } else {
         deliverRow.hidden = true;
         arriveRow.hidden = false;

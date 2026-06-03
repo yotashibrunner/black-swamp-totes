@@ -622,3 +622,7 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 .badge-ready { background: rgba(34,197,94,.22); color: #6fe39a; font-weight: 700; }
 .sec-ready { border-left: 3px solid var(--accent); }
 .sec-ready .sec-title { color: #6fe39a; }
+
+/* ── Plan route button ──────────────────────────────────────────────── */
+.route-btn { border: 1.5px solid var(--accent); color: var(--accent); font-weight: 700; background: transparent; }
+.route-btn:hover { background: rgba(34,197,94,.10); }

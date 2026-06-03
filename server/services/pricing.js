@@ -12,7 +12,7 @@
 
 const { calcTax } = require('../utils/money');
 const { inclusiveDays } = require('../utils/date');
-const { getTaxRate } = require('./settings');
+const { getTaxRate, extensionRatePerBinCents } = require('./settings');
 
 const PERIOD_COLUMN = {
   hour: 'hourly_rate',
@@ -38,17 +38,20 @@ function clampInt(value, min) {
   return Math.max(min, n);
 }
 
-// trailer: a row from the trailer service. input: { period_type, quantity?,
-// start_at?, end_at?, extra_days?, tire_count? }.
-// Weeks for a bin rental: derived from the delivery→pickup range (inclusive,
-// rounded up), minimum one week; falls back to an explicit quantity.
-function computeWeeks(input) {
+// Bin rental period from the delivery→pickup range (inclusive). Complete weeks
+// bill at weekly_rate; days beyond the last full week bill at the per-bin
+// extension rate (NOT rounded up to another full week). Minimum one week.
+//   7 days  → 1 week, 0 extra      8 days  → 1 week, 1 extra day
+//   14 days → 2 weeks, 0 extra     13 days → 1 week, 6 extra days
+function computeBinPeriod(input) {
   if (input.start_at && input.end_at) {
     const days = inclusiveDays(input.start_at, input.end_at);
     if (days == null) throw badRequest('Invalid date range.');
-    return Math.max(1, Math.ceil(days / 7));
+    const weeks = Math.max(1, Math.floor(days / 7));
+    const extraDays = Math.max(0, days - weeks * 7);
+    return { weeks, extraDays };
   }
-  return clampInt(input.weeks ?? input.quantity ?? 1, 1);
+  return { weeks: clampInt(input.weeks ?? input.quantity ?? 1, 1), extraDays: 0 };
 }
 
 async function computeQuote(trailer, input) {
@@ -62,25 +65,37 @@ async function computeQuote(trailer, input) {
   // charges weekly_rate (per-bin-per-week) × bin count. Delivery is always free.
   if (trailer.type === 'bins') {
     if (trailer.weekly_rate == null) throw badRequest('This package is not available.');
-    const weeks = computeWeeks(input);
+    const { weeks, extraDays } = computeBinPeriod(input);
     const binCount = trailer.is_custom
       ? Math.max(10, clampInt(input.bin_quantity ?? input.bin_count ?? 0, 10))
       : (trailer.bin_count || 0);
     const dollyCount = trailer.is_custom ? Math.max(1, Math.ceil(binCount / 25)) : (trailer.dolly_count || 0);
     const perWeek = trailer.is_custom ? trailer.weekly_rate * binCount : trailer.weekly_rate;
-    baseCents = perWeek * weeks;
+    const weekBase = perWeek * weeks;
+
+    // Extra days beyond full weeks bill at the per-bin extension rate.
+    const extRate = await extensionRatePerBinCents();
+    const extensionCents = extraDays > 0 ? extRate * binCount * extraDays : 0;
+    baseCents = weekBase + extensionCents;
 
     lineItems.push({
       label: trailer.is_custom
         ? `${binCount} bins × ${weeks} week${weeks > 1 ? 's' : ''} @ $${(trailer.weekly_rate / 100).toFixed(2)}/bin/wk`
         : `${binCount} bins · ${weeks} week${weeks > 1 ? 's' : ''}`,
-      amount_cents: baseCents,
+      amount_cents: weekBase,
     });
+    if (extraDays > 0) {
+      lineItems.push({
+        label: `${extraDays} extra day${extraDays > 1 ? 's' : ''} · ${binCount} bins @ $${(extRate / 100).toFixed(2)}/bin/day`,
+        amount_cents: extensionCents,
+      });
+    }
 
     const taxRate = await getTaxRate();
     const taxCents = calcTax(baseCents, taxRate);
     return {
-      period_type: 'week', quantity: weeks, weeks, bin_count: binCount, dolly_count: dollyCount,
+      period_type: 'week', quantity: weeks, weeks, extra_days: extraDays,
+      bin_count: binCount, dolly_count: dollyCount, extension_rate_per_bin_cents: extRate,
       base_cents: baseCents, tax_rate: taxRate, tax_cents: taxCents,
       total_cents: baseCents + taxCents, line_items: lineItems,
     };
