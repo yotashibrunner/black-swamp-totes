@@ -208,7 +208,7 @@ router.get('/book/:ref/calendar.ics', async (req, res, next) => {
       `DTSTART:${stamp(b.start_at)}`,
       `DTEND:${stamp(b.end_at)}`,
       `SUMMARY:Black Swamp Totes Rental — ${b.trailer_name} (${b.ref_code})`,
-      'LOCATION:4041 Navarre Ave, Oregon, OH 43616',
+      'LOCATION:4710 S Detroit Ave, Toledo, OH 43614',
       'END:VEVENT', 'END:VCALENDAR',
     ].join('\r\n');
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');

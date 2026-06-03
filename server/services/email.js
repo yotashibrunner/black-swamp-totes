@@ -54,7 +54,7 @@ async function sendBookingConfirmation(booking, pdfBuffer, baseUrl) {
 
   const logistics = isDelivery
     ? `We’ll deliver to <strong>${booking.delivery_address || 'your address'}</strong>${timeStr ? ` around <strong>${timeStr}</strong>` : ''} and pick it back up.`
-    : `Pickup at 4041 Navarre Ave, Oregon, OH 43616 (7am–7pm)${timeStr ? `, around <strong>${timeStr}</strong>` : ''}.`;
+    : `Pickup at 4710 S Detroit Ave, Toledo, OH 43614 (7am–7pm)${timeStr ? `, around <strong>${timeStr}</strong>` : ''}.`;
 
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:560px">
@@ -94,8 +94,8 @@ async function sendBookingReminder(booking, kind, baseUrl) {
     ? 'Your pickup is tomorrow.'
     : 'Your rental is due back tomorrow.';
   const detail = isPickup
-    ? 'Pickup is at 4041 Navarre Ave, Oregon, OH 43616 (7am–7pm). Bring a properly rated tow vehicle.'
-    : 'Please return to 4041 Navarre Ave, Oregon, OH 43616 (7am–7pm) by end of day to avoid late charges.';
+    ? 'Pickup is at 4710 S Detroit Ave, Toledo, OH 43614 (7am–7pm). Bring a properly rated tow vehicle.'
+    : 'Please return to 4710 S Detroit Ave, Toledo, OH 43614 (7am–7pm) by end of day to avoid late charges.';
 
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:560px">

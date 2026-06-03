@@ -13,7 +13,7 @@ const PDFDocument = require('pdfkit');
 const { formatCents } = require('../utils/money');
 
 const CONTRACT_VERSION = 2;
-const PICKUP_ADDRESS = '4041 Navarre Ave, Oregon, OH 43616';
+const PICKUP_ADDRESS = '4710 S Detroit Ave, Toledo, OH 43614';
 const BUSINESS_NAME = 'Black Swamp Totes';
 const LOST_BIN_FEE = '$35.00';
 const EXTENSION_RATE = '$0.30 per bin per day';
