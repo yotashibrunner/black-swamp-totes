@@ -4,11 +4,13 @@
 // by slug. Any leftover (non-package) rows are deactivated so they drop off the
 // public site without violating booking foreign keys.
 //
-//   npm run seed
+// Run with: railway run --service black-swamp-totes node scripts/seed-trailers.js
+// Or from the Railway dashboard: Shell tab > run command
 //
 // All prices are stored in CENTS. weekly_rate is per-week for the fixed
 // packages; for the custom package it is the per-bin-per-week rate ($3.50).
 
+require('./_db-guard')('seed-trailers.js');
 const { pool } = require('../server/db');
 
 const PACKAGES = [

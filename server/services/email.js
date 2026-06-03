@@ -41,11 +41,13 @@ async function sendBookingConfirmation(booking, pdfBuffer, baseUrl) {
     : null;
   const timeLabel = isDelivery ? 'Delivery time' : (booking.trailer_type === 'dumpster' ? 'Drop-off time' : 'Pickup time');
 
+  const dolly = booking.dolly_count || 0;
   const rows = [
-    `<tr><td ${td}>Equipment</td><td><strong>${booking.trailer_name}</strong></td></tr>`,
+    `<tr><td ${td}>Package</td><td><strong>${booking.trailer_name}</strong></td></tr>`,
+    booking.bin_count ? `<tr><td ${td}>Bins</td><td>${booking.bin_count} bins${dolly ? ` · ${dolly} doll${dolly === 1 ? 'y' : 'ies'}` : ''}</td></tr>` : '',
     `<tr><td ${td}>Reference</td><td>${ref}</td></tr>`,
-    `<tr><td ${td}>Fulfillment</td><td>${isDelivery ? 'Delivery' : 'Customer pickup'}</td></tr>`,
-    isDelivery && booking.delivery_address ? `<tr><td ${td}>Address</td><td>${booking.delivery_address}</td></tr>` : '',
+    isDelivery && booking.delivery_address ? `<tr><td ${td}>Delivery address</td><td>${booking.delivery_address}</td></tr>` : '',
+    booking.pickup_address ? `<tr><td ${td}>Pickup address</td><td>${booking.pickup_address}</td></tr>` : '',
     timeStr ? `<tr><td ${td}>${timeLabel}</td><td><strong>${timeStr}</strong></td></tr>` : '',
     `<tr><td ${td}>Total paid</td><td>${formatCents(booking.total_cents)}</td></tr>`,
   ].filter(Boolean).join('');
@@ -168,7 +170,7 @@ async function sendStatement(recipients, pdf, statement) {
       <p style="color:#888;font-size:12px">${'Black Swamp Totes'} · (419) 673-7001</p>
     </div>`;
 
-  const filename = `glass-city-statement-${statement.year}-${String(statement.month).padStart(2, '0')}.pdf`;
+  const filename = `black-swamp-totes-statement-${statement.year}-${String(statement.month).padStart(2, '0')}.pdf`;
   try {
     const { data, error } = await resend.emails.send({
       from: config.fromEmail,

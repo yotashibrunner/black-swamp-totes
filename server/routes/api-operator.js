@@ -658,7 +658,7 @@ router.get('/reports/export.csv', requireAdmin, async (req, res, next) => {
     const rows = await reportsSvc.bookingsBreakdown(fromIso, toIso);
     const stamp = fromIso.slice(0, 7); // YYYY-MM
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="glass-city-bookings-${stamp}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="black-swamp-totes-bookings-${stamp}.csv"`);
     res.send(reportsSvc.toCsv(rows));
   } catch (err) { next(err); }
 });

@@ -138,6 +138,20 @@ const server = app.listen(config.port, () => {
     + `twilio=${on(config.twilioAccountSid && config.twilioAuthToken && config.twilioFromNumber)} `
     + `operator_phone=${on(config.operatorPhone)}`
   );
+
+  // Schema readiness check — turns an opaque "internal error" into a clear log
+  // line when the release-phase `migrate:up` didn't run (e.g. operator + fleet
+  // pages 500 because new columns are missing). Best-effort, non-blocking.
+  require('./db').query(
+    "SELECT 1 FROM information_schema.columns WHERE table_name='trailers' AND column_name='bin_count'"
+  ).then((r) => {
+    if (!r.rows.length) {
+      console.error('[schema] ⚠ migrations NOT applied (trailers.bin_count missing). '
+        + 'DB-backed routes will 500. Run: npm run migrate:up');
+    } else {
+      console.log('[schema] up to date');
+    }
+  }).catch((e) => console.error('[schema] readiness check failed:', e.message));
 });
 
 // Graceful shutdown so Railway redeploys don't drop in-flight requests.

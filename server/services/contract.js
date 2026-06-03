@@ -161,7 +161,7 @@ function buildBinAgreement({ booking, trailer, customer }) {
       'Bins must be returned empty and reasonably clean. Bins returned with hazardous waste or significant contamination may incur a cleaning fee of up to $50.',
     ] },
     { heading: '5. Ownership', paragraphs: [
-      `All bins and dollies remain the property of ${BUSINESS_NAME} at all times. The Renter acquires no ownership interest in the equipment.`,
+      `All bins and dollies remain the property of ${BUSINESS_NAME} (${PICKUP_ADDRESS}) at all times. The Renter acquires no ownership interest in the equipment.`,
     ] },
     { heading: '6. Payment Authorization', paragraphs: [
       `The Renter authorizes ${BUSINESS_NAME} to charge the payment method on file for: extension fees, lost or damaged bin fees, and any additional charges arising from this rental.`,

@@ -10,8 +10,12 @@
 // instead of erroring, so it doubles as a password-reset tool.
 //
 // Password is bcrypt-hashed (cost from config.bcryptRounds, default 12).
+//
+// Run with: railway run --service black-swamp-totes node scripts/create-admin.js --email you@example.com --name "Name" --role admin
+// Or from the Railway dashboard: Shell tab > run command
 
 const readline = require('readline');
+require('./_db-guard')('create-admin.js');
 const { pool } = require('../server/db');
 const { hashPassword } = require('../server/services/auth');
 

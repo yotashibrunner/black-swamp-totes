@@ -81,7 +81,7 @@ scripts/
    ```
 
    Edit `.env` — at minimum set `DATABASE_URL` to a local Postgres database.
-   Create the database first if needed: `createdb glasscity`.
+   Create the database first if needed: `createdb blackswamptotes`.
 
 3. **Run migrations**
 

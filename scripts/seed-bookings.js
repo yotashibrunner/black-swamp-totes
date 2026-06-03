@@ -20,9 +20,9 @@ const REF_PREFIX = 'TEST-';
 
 // Throwaway customers. Identified by these emails for find-or-create + cleanup.
 const CUSTOMERS = [
-  { key: 'marcus', name: 'Marcus Webb', email: 'test+marcus@glasscity.test', phone: '(419) 555-0142' },
-  { key: 'dana', name: 'Dana Reyes', email: 'test+dana@glasscity.test', phone: '(419) 555-0173' },
-  { key: 'sam', name: 'Sam Okafor', email: 'test+sam@glasscity.test', phone: '(567) 555-0198' },
+  { key: 'marcus', name: 'Marcus Webb', email: 'test+marcus@blackswamptotes.test', phone: '(419) 555-0142' },
+  { key: 'dana', name: 'Dana Reyes', email: 'test+dana@blackswamptotes.test', phone: '(419) 555-0173' },
+  { key: 'sam', name: 'Sam Okafor', email: 'test+sam@blackswamptotes.test', phone: '(567) 555-0198' },
 ];
 
 // Test bookings, relative to today. `days` is the inclusive rental length;

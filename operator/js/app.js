@@ -2154,7 +2154,7 @@
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = `glass-city-bookings-${ymNow}.csv`;
+            a.href = url; a.download = `black-swamp-totes-bookings-${ymNow}.csv`;
             document.body.appendChild(a); a.click(); a.remove();
             URL.revokeObjectURL(url);
           } catch (err) { genErr.textContent = err.message; genErr.hidden = false; }
