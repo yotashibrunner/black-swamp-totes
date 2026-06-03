@@ -47,12 +47,12 @@ const PACKAGES = [
   {
     slug: 'student-special',
     name: 'Student Special',
-    size_label: '25 bins + 1 dolly · 2 weeks',
-    description: 'Built for BGSU and UT Toledo students. 25 bins and a dolly for two full weeks — plenty of time for move-in or move-out. Delivered anywhere in Toledo or Bowling Green.',
-    weekly_rate: 4950,
-    bin_count: 25, dolly_count: 1, is_custom: false,
+    size_label: '15 bins + 1 dolly · 2 weeks',
+    description: 'Built for BGSU and UT Toledo students. 15 bins and a dolly for two full weeks — plenty of time for move-in or move-out. Delivered anywhere in Toledo or Bowling Green.',
+    weekly_rate: 4950, // 2-week rental = $99 (weekly_rate x 2 weeks)
+    bin_count: 15, dolly_count: 1, is_custom: false,
     quantity_total: 10, display_order: 4,
-    specs: ['25 large stackable bins', '1 hand dolly included', '2-week rental included', 'Free delivery to your door', 'Free pickup when you are done', 'Perfect for BGSU and UT Toledo students'],
+    specs: ['15 large stackable bins', '1 hand dolly included', '2-week rental included', 'Free delivery to your door', 'Free pickup when you are done', 'Perfect for BGSU and UT Toledo students'],
   },
   {
     slug: 'custom',
