@@ -66,12 +66,6 @@
   .scroll-ind{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);animation:bounce 1.8s infinite;}
   @keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(10px);}}
 
-  /* STATS */
-  .stats{background:var(--swamp);color:#fff;padding:64px 0;}
-  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;text-align:center;}
-  .stat .num{font-size:clamp(36px,6vw,56px);font-weight:900;color:var(--lily);line-height:1;letter-spacing:-.02em;}
-  .stat .lbl{color:rgba(255,255,255,.6);margin-top:8px;font-weight:500;}
-  @media(max-width:640px){.stats-grid{grid-template-columns:1fr;gap:36px;}}
 
   /* STEPS */
   .steps-wrap{position:relative;margin-top:56px;}
@@ -210,21 +204,12 @@
         <a class="btn btn-outline-white" href="#how">How it works</a>
       </div>
     </div>
-    <a class="scroll-ind" href="#stats" aria-label="Scroll down">
+    <a class="scroll-ind" href="#how" aria-label="Scroll down">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </a>
   </header>
 
-  <!-- 2. STATS -->
-  <section class="stats" id="stats"><div class="container">
-    <div class="stats-grid">
-      <div class="stat" data-aos="fade-up"><div class="num">500+</div><div class="lbl">Moves completed</div></div>
-      <div class="stat" data-aos="fade-up" data-aos-delay="150"><div class="num">20,000+</div><div class="lbl">Bins in circulation</div></div>
-      <div class="stat" data-aos="fade-up" data-aos-delay="300"><div class="num">5.0 ★</div><div class="lbl">Customer rating</div></div>
-    </div>
-  </div></section>
-
-  <!-- 3. HOW IT WORKS -->
+  <!-- HOW IT WORKS -->
   <section class="section" id="how"><div class="container">
     <div class="center">
       <div class="eyebrow" data-aos="fade-up">How it works</div>
@@ -249,21 +234,21 @@
     <div class="pkgs">
       <div class="card" data-aos="fade-up" data-aos-delay="0"><div class="bar"></div><div class="card-in">
         <h3>Studio / Dorm</h3><div class="meta">20 bins + 1 dolly</div>
-        <div class="price">$89<span>/week</span></div>
+        <div class="price">$105<span>/week</span></div>
         <ul><li>20 large stackable bins</li><li>1 hand dolly included</li><li>Free delivery &amp; pickup</li><li>Sanitized before every rental</li></ul>
         <a class="btn btn-outline-dark" href="/fleet/studio-dorm">Book this package →</a>
       </div></div>
 
       <div class="card pop" data-aos="fade-up" data-aos-delay="150"><span class="badge-pop">MOST POPULAR</span><div class="bar"></div><div class="card-in">
         <h3>1–2 Bedroom</h3><div class="meta">35 bins + 1 dolly</div>
-        <div class="price">$129<span>/week</span></div>
+        <div class="price">$149<span>/week</span></div>
         <ul><li>35 large stackable bins</li><li>1 hand dolly included</li><li>Free delivery &amp; pickup</li><li>Sanitized before every rental</li></ul>
         <a class="btn btn-primary" href="/fleet/one-two-bedroom">Book this package →</a>
       </div></div>
 
       <div class="card" data-aos="fade-up" data-aos-delay="300"><div class="bar"></div><div class="card-in">
         <h3>3–4 Bedroom</h3><div class="meta">50 bins + 2 dollies</div>
-        <div class="price">$175<span>/week</span></div>
+        <div class="price">$205<span>/week</span></div>
         <ul><li>50 large stackable bins</li><li>2 hand dollies included</li><li>Free delivery &amp; pickup</li><li>Sanitized before every rental</li></ul>
         <a class="btn btn-outline-dark" href="/fleet/three-four-bedroom">Book this package →</a>
       </div></div>
@@ -277,7 +262,7 @@
 
       <div class="card" data-aos="fade-up" data-aos-delay="150"><div class="bar"></div><div class="card-in">
         <h3>Custom Order</h3><div class="meta">You choose the quantity</div>
-        <div class="price">$3.50<span>/bin/week</span></div>
+        <div class="price">$4.00<span>/bin/week</span></div>
         <ul><li>Order exactly what you need</li><li>Minimum 10 bins</li><li>1 dolly per 25 bins</li><li>Free delivery &amp; pickup</li></ul>
         <a class="btn btn-outline-dark" href="/fleet/custom">Book this package →</a>
       </div></div>
