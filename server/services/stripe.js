@@ -28,7 +28,7 @@ function isConfigured() {
 }
 
 function unconfigured() {
-  const err = new Error('Online payments are not set up yet. Please call (419) 654-3584 to pay.');
+  const err = new Error('Online payments are not set up yet. Please call (419) 673-7001 to pay.');
   err.status = 503;
   err.code = 'stripe_unconfigured';
   return err;

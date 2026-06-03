@@ -18,7 +18,7 @@
     <div class="site-head-inner">
       <a class="back" href="/">‹ <span>Home</span></a>
       <a href="/" aria-label="Black Swamp Totes home"><%- include("partials/cattail") %></a>
-      <a class="call" href="tel:+14196543584" aria-label="Call Black Swamp Totes">Call</a>
+      <a class="call" href="tel:+14196737001" aria-label="Call Black Swamp Totes">Call</a>
     </div>
   </header>
 
@@ -115,7 +115,7 @@
         var btn = el('lookupBtn'); btn.disabled = true; btn.textContent = 'Looking up…';
         try {
           var res = await fetch('/api/bookings/' + encodeURIComponent(ref));
-          if (res.status === 404) throw new Error('We couldn’t find a booking with that reference. Double-check the code, or call (419) 654-3584.');
+          if (res.status === 404) throw new Error('We couldn’t find a booking with that reference. Double-check the code, or call (419) 673-7001.');
           if (!res.ok) throw new Error('Something went wrong. Please try again.');
           paint(await res.json());
         } catch (e2) {

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title><%= trailer.name %> — Availability & Quote | Black Swamp Totes</title>
-  <meta name="description" content="Check availability and get a live rental quote for the <%= trailer.name %> at Black Swamp Totes, Toledo OH. Pickup only." />
+  <meta name="description" content="Check availability and book the <%= trailer.name %> bin package from Black Swamp Totes. Free delivery and pickup throughout Northwest Ohio." />
   <link rel="icon" href="/images/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,9 +16,9 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-head">
     <div class="site-head-inner">
-      <a class="back" href="/#fleet">‹ <span>Back to Fleet</span></a>
+      <a class="back" href="/#packages">‹ <span>Packages</span></a>
       <a href="/" aria-label="Black Swamp Totes home"><%- include("partials/cattail") %></a>
-      <a class="call" href="tel:+14196543584" aria-label="Call Black Swamp Totes">Call</a>
+      <a class="call" href="tel:+14196737001" aria-label="Call Black Swamp Totes">Call</a>
     </div>
   </header>
 
@@ -26,7 +26,7 @@
     <div class="detail">
       <!-- Left: trailer info -->
       <section>
-        <div class="crumb">Fleet / <%= trailer.type === 'dumpster' ? 'Dumpster' : 'Trailer' %></div>
+        <div class="crumb">Packages / Bins</div>
         <h1 class="display"><%= trailer.name %></h1>
         <% if (trailer.size_label) { %><div class="eyebrow" style="margin-bottom:18px;"><%= trailer.size_label %></div><% } %>
 
@@ -42,55 +42,56 @@
         </ul>
         <% } %>
 
-        <div class="eyebrow" style="margin-bottom:10px;">Rate Card</div>
+        <div class="eyebrow" style="margin-bottom:10px;">Rate</div>
         <div class="price-matrix">
-          <div class="cell <%= trailer.hourly_rate == null ? 'na' : '' %>">
-            <div class="amt"><%= trailer.hourly_rate == null ? '—' : fmt(trailer.hourly_rate) %></div>
-            <div class="per">/hr</div>
+          <div class="cell">
+            <div class="amt"><%= fmt(trailer.weekly_rate) %></div>
+            <div class="per"><%= trailer.is_custom ? '/ bin / week' : '/ week' %></div>
           </div>
-          <div class="cell <%= trailer.daily_rate == null ? 'na' : '' %>">
-            <div class="amt"><%= trailer.daily_rate == null ? '—' : fmt(trailer.daily_rate) %></div>
-            <div class="per">/day</div>
+          <div class="cell">
+            <div class="amt">Free</div>
+            <div class="per">delivery &amp; pickup</div>
           </div>
-          <div class="cell <%= trailer.weekly_rate == null ? 'na' : '' %>">
-            <div class="amt"><%= trailer.weekly_rate == null ? '—' : fmt(trailer.weekly_rate) %></div>
-            <div class="per">/week</div>
+          <% if (!trailer.is_custom && trailer.bin_count) { %>
+          <div class="cell">
+            <div class="amt"><%= trailer.bin_count %></div>
+            <div class="per">bins<% if (trailer.dolly_count) { %> + <%= trailer.dolly_count %> doll<%= trailer.dolly_count === 1 ? 'y' : 'ies' %><% } %></div>
           </div>
-          <div class="cell <%= trailer.monthly_rate == null ? 'na' : '' %>">
-            <div class="amt"><%= trailer.monthly_rate == null ? '—' : fmt(trailer.monthly_rate) %></div>
-            <div class="per">/month</div>
-          </div>
+          <% } %>
         </div>
 
         <p class="reqs-line">
-          <% if (trailer.hitch_requirement) { %><strong><%= trailer.hitch_requirement %></strong><% } %>
-          <% if (trailer.plug_requirement) { %> · <%= trailer.plug_requirement %><% } %>
-          <% if (trailer.min_hours) { %><br/><%= trailer.min_hours %> hr minimum on hourly rentals<% } %>
-          <br/>Pickup at 4041 Navarre Ave, Oregon OH — no delivery.
+          Free delivery and pickup throughout Toledo, Bowling Green &amp; Northwest Ohio.
+          <br/>Bins are sanitized before every rental. Extensions are $0.30 per bin per day.
         </p>
       </section>
 
       <!-- Right: booking panel -->
       <aside class="panel">
-        <h2>Check Availability</h2>
-        <p class="dim mono" style="font-size:12px;">Drag-select your dates for a live quote.</p>
+        <h2>Pick Your Dates</h2>
+        <p class="dim mono" style="font-size:12px;">Choose your delivery and pickup dates for a live quote.</p>
 
-        <div class="step" id="cal-step">Step 1 — Pick Dates</div>
+        <div class="step" id="cal-step">Step 1 — Delivery &amp; Pickup Dates</div>
         <div id="calendar" role="group" aria-labelledby="cal-step"></div>
 
         <div class="step">Step 2 — Your Estimate</div>
         <div class="quote" aria-live="polite" aria-label="Rental estimate">
-          <div class="qrow"><span>Dates</span><span id="q-dates">—</span></div>
-          <div class="qrow"><span>Days</span><span id="q-days">—</span></div>
-          <div class="qrow"><span>Daily rate</span><span><%= trailer.daily_rate == null ? '—' : fmt(trailer.daily_rate) %></span></div>
+          <div class="qrow"><span>Delivery → Pickup</span><span id="q-dates">—</span></div>
+          <div class="qrow"><span>Rental term</span><span id="q-days">—</span></div>
+          <div class="qrow"><span><%= trailer.is_custom ? 'Per bin / week' : 'Weekly rate' %></span><span><%= fmt(trailer.weekly_rate) %></span></div>
           <div class="qrow"><span>Subtotal</span><span id="q-base">—</span></div>
           <div class="qrow"><span id="q-tax-label">Tax</span><span id="q-tax">—</span></div>
+          <div class="qrow"><span>Delivery &amp; pickup</span><span style="color:var(--green)">Free</span></div>
           <div class="qtotal">
             <span class="lbl">Total</span>
             <span class="val" id="q-total">$0</span>
           </div>
           <p class="err" id="q-err" role="alert"></p>
-          <p class="qnote">Estimate for customer pickup. Full balance is charged at booking. A signed rental agreement is required before pickup.</p>
+          <% if (trailer.is_custom) { %>
+          <p class="qnote">Estimate shown for 10 bins — you'll choose the exact number on the next step. Free delivery and pickup. A signed rental agreement is required before delivery.</p>
+          <% } else { %>
+          <p class="qnote">Full balance is charged at booking. Free delivery and pickup. A signed rental agreement is required before delivery.</p>
+          <% } %>
         </div>
 
         <button class="btn btn-primary" id="reserveBtn" type="button" disabled>Reserve &amp; Pay →</button>
@@ -122,7 +123,8 @@
 
       function renderQuote(q, range) {
         el('q-dates').textContent = range.start + ' → ' + range.end;
-        el('q-days').textContent = q.quantity + (q.quantity === 1 ? ' day' : ' days');
+        var weeks = q.weeks || q.quantity;
+        el('q-days').textContent = weeks + (weeks === 1 ? ' week' : ' weeks');
         el('q-base').textContent = q.base_fmt;
         el('q-tax-label').textContent = 'Tax (' + (q.tax_rate * 100).toFixed(2).replace(/\.?0+$/, '') + '%)';
         el('q-tax').textContent = q.tax_fmt;
@@ -137,7 +139,7 @@
         if (!range) { resetQuote(); return; }
         try {
           var q = await GCQuote.requestQuote({
-            slug: T.slug, period_type: 'day', start_at: range.start, end_at: range.end,
+            slug: T.slug, period_type: 'week', start_at: range.start, end_at: range.end,
           });
           renderQuote(q, range);
         } catch (e) {
