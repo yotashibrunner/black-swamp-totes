@@ -152,7 +152,9 @@
       function renderQuote(q, range) {
         el('q-dates').textContent = range.start + ' → ' + range.end;
         var weeks = q.weeks || q.quantity;
-        el('q-days').textContent = weeks + (weeks === 1 ? ' week' : ' weeks');
+        var extra = q.extra_days || 0;
+        el('q-days').textContent = weeks + (weeks === 1 ? ' week' : ' weeks')
+          + (extra ? ' + ' + extra + (extra === 1 ? ' day' : ' days') : '');
         el('q-base').textContent = q.base_fmt;
         el('q-tax-label').textContent = 'Tax (' + (q.tax_rate * 100).toFixed(2).replace(/\.?0+$/, '') + '%)';
         el('q-tax').textContent = q.tax_fmt;
