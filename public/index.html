@@ -162,11 +162,12 @@
   /* FOOTER */
   footer{background:var(--swamp);color:rgba(255,255,255,.7);padding:64px 0 28px;border-top:1px solid rgba(255,255,255,.08);}
   .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:36px;}
+  .foot-grid > div{min-width:0;} /* allow contents to wrap instead of overflowing/clipping */
   @media(max-width:760px){.foot-grid{grid-template-columns:1fr;gap:30px;}}
   .foot-brand b{font-size:20px;color:#fff;font-weight:800;}
   .foot-tag{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--lily);margin-top:10px;}
   footer h5{color:#fff;font-size:14px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
-  footer a{display:block;padding:5px 0;font-size:15px;color:rgba(255,255,255,.7);}
+  footer a{display:block;padding:5px 0;font-size:15px;color:rgba(255,255,255,.7);white-space:normal;overflow-wrap:anywhere;}
   footer a:hover{color:var(--lily);}
   .foot-bottom{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-top:46px;padding-top:22px;border-top:1px solid rgba(255,255,255,.1);font-size:13px;}
   .foot-bottom .links{display:flex;flex-wrap:wrap;gap:8px;}
