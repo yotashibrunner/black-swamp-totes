@@ -94,8 +94,8 @@ async function sendBookingReminder(booking, kind, baseUrl) {
     ? 'Your pickup is tomorrow.'
     : 'Your rental is due back tomorrow.';
   const detail = isPickup
-    ? 'Pickup is at 4710 S Detroit Ave, Toledo, OH 43614 (7am–7pm). Bring a properly rated tow vehicle.'
-    : 'Please return to 4710 S Detroit Ave, Toledo, OH 43614 (7am–7pm) by end of day to avoid late charges.';
+    ? 'Your reusable bins arrive tomorrow — we’ll confirm a delivery time window. No assembly, no tape, no mess.'
+    : 'We’ll pick up your bins tomorrow. Please have them empty and reasonably clean. Need more time? Reply READY or EXTEND, or manage your booking online.';
 
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:560px">

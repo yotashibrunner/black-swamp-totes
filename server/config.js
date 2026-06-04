@@ -50,7 +50,7 @@ const config = {
   // ── Email — Resend (Phase 5) ────────────────────────────────────────
   // Optional: when unset, confirmation emails are skipped (logged, not sent).
   resendApiKey: process.env.RESEND_API_KEY || '',
-  fromEmail: process.env.FROM_EMAIL || 'bookings@blackswamptotes.com',
+  fromEmail: process.env.FROM_EMAIL || 'hello@blackswamptotes.com',
 
   // ── Web Push — VAPID (Phase 8 / Session 3) ──────────────────────────
   // Optional: when unset, push subscribe/send are no-ops (logged). Generate a
@@ -60,7 +60,7 @@ const config = {
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
   vapidSubject:
     process.env.VAPID_SUBJECT
-    || (process.env.VAPID_EMAIL ? `mailto:${process.env.VAPID_EMAIL}` : 'mailto:owner@blackswamptotes.com'),
+    || (process.env.VAPID_EMAIL ? `mailto:${process.env.VAPID_EMAIL}` : 'mailto:hello@blackswamptotes.com'),
 
   // ── SMS — Twilio (Phase 8 / Session 3) ──────────────────────────────
   // Optional: when unset, SMS sends are skipped (logged). Uses the Twilio REST

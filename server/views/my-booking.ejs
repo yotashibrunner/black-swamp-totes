@@ -29,7 +29,7 @@
 
       <form id="lookupForm" novalidate style="margin-top:18px;">
         <label class="fl" for="ref">Enter your booking reference</label>
-        <input type="text" id="ref" placeholder="e.g. GCT-A1B2" autocomplete="off" autocapitalize="characters"
+        <input type="text" id="ref" placeholder="e.g. BST-A1B2" autocomplete="off" autocapitalize="characters"
                style="text-transform:uppercase;" value="<%= ref %>" />
         <button class="btn btn-primary" id="lookupBtn" type="submit" style="margin-top:12px;">Find my booking</button>
         <p class="err" id="err" role="alert" aria-live="assertive"></p>
@@ -111,7 +111,7 @@
         e.preventDefault();
         err.textContent = ''; card.hidden = true;
         var ref = refEl.value.trim().toUpperCase();
-        if (!ref) { err.textContent = 'Enter your booking reference (e.g. GCT-A1B2).'; return; }
+        if (!ref) { err.textContent = 'Enter your booking reference (e.g. BST-A1B2).'; return; }
         var btn = el('lookupBtn'); btn.disabled = true; btn.textContent = 'Looking up…';
         try {
           var res = await fetch('/api/bookings/' + encodeURIComponent(ref));
