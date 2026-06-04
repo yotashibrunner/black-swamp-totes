@@ -54,7 +54,7 @@ async function sendBookingConfirmation(booking, pdfBuffer, baseUrl) {
 
   const logistics = isDelivery
     ? `We’ll deliver to <strong>${booking.delivery_address || 'your address'}</strong>${timeStr ? ` around <strong>${timeStr}</strong>` : ''} and pick it back up.`
-    : `Pickup at 4710 S Detroit Ave, Toledo, OH 43614 (7am–7pm)${timeStr ? `, around <strong>${timeStr}</strong>` : ''}.`;
+    : `Pickup in Toledo, OH (7am–7pm)${timeStr ? `, around <strong>${timeStr}</strong>` : ''} — we’ll share the exact address with you.`;
 
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:560px">
