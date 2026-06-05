@@ -88,6 +88,16 @@ async function createBooking(input) {
   if (!trailer) throw badRequest('Trailer not found.', 404);
   if (trailer.status !== 'available') throw badRequest('This item is currently unavailable.', 409);
 
+  // The Student Special is restricted to verified students — require a .edu
+  // email (e.g. name@bgsu.edu or name@rockets.utoledo.edu). Enforced here so it
+  // holds regardless of client-side checks.
+  if (trailer.slug === 'student-special') {
+    const studentEmail = ((input.customer && input.customer.email) || '').trim();
+    if (!/\.edu$/i.test(studentEmail)) {
+      throw badRequest('The Student Special requires a valid .edu student email address (e.g. name@bgsu.edu or name@rockets.utoledo.edu)');
+    }
+  }
+
   const { start, end, periodType, quantity } = resolveWindow(trailer, input);
 
   // Requested pickup/delivery time-of-day (HH:MM), stored as wall-clock UTC on

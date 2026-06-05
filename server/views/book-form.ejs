@@ -91,6 +91,9 @@
             <div><label class="fl" for="phone">Phone <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label><input type="text" id="phone" inputmode="tel" autocomplete="tel" required aria-required="true" /></div>
             <div><label class="fl" for="email">Email <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label><input type="email" id="email" inputmode="email" autocomplete="email" required aria-required="true" /></div>
           </div>
+<% if (trailer.slug === 'student-special') { %>
+          <p id="studentEmailMsg" role="status" aria-live="polite" style="font-size:13px;margin-top:8px;color:var(--green);"></p>
+<% } %>
 
           <div class="step"><label class="fl" for="startTime" id="timeLabel" style="margin:0;"><%= isBins ? 'Preferred Delivery Time' : (isDumpster ? 'Preferred Drop-off Time' : 'Preferred Pickup Time') %></label></div>
           <div class="field-row">
@@ -163,6 +166,7 @@
       var IS_BINS = <%= isBins ? 'true' : 'false' %>;
       var IS_DUMPSTER = <%= isDumpster ? 'true' : 'false' %>;
       var IS_CUSTOM = <%= (isBins && trailer.is_custom) ? 'true' : 'false' %>;
+      var IS_STUDENT = <%= trailer.slug === 'student-special' ? 'true' : 'false' %>;
       var TRAILER_ID = '<%= trailer.id %>';
       var DELIVERY_FEE = <%= deliveryFeeCents %>;
       var WEEKS = <%= quote.weeks || quote.quantity || 1 %>;
@@ -222,6 +226,33 @@
       });
       refresh();
 
+      // Student Special: require a .edu student email. Gate the Continue button
+      // and show an inline hint/error as they type.
+      var EDU_MSG = 'The Student Special requires a valid .edu student email address (e.g. name@bgsu.edu or name@rockets.utoledo.edu)';
+      function isEdu(v) { return /\.edu$/i.test((v || '').trim()); }
+      function checkStudentEmail() {
+        if (!IS_STUDENT) return true;
+        var v = el('email').value.trim();
+        var note = el('studentEmailMsg');
+        if (!v) {
+          if (note) { note.style.color = 'var(--green)'; note.textContent = 'Heads up: the Student Special requires a valid .edu student email (e.g. name@bgsu.edu).'; }
+          el('continueBtn').disabled = true;
+          return false;
+        }
+        if (!isEdu(v)) {
+          if (note) { note.style.color = 'var(--hazard)'; note.textContent = EDU_MSG; }
+          el('continueBtn').disabled = true;
+          return false;
+        }
+        if (note) { note.style.color = 'var(--green)'; note.textContent = '✓ Looks good — student email verified.'; }
+        el('continueBtn').disabled = false;
+        return true;
+      }
+      if (IS_STUDENT) {
+        el('email').addEventListener('input', checkStudentEmail);
+        checkStudentEmail(); // starts disabled until a valid .edu is entered
+      }
+
       // Discount code: validate against the current base, reflect in the total.
       el('applyCoupon').addEventListener('click', async function () {
         var code = el('couponCode').value.trim().toUpperCase();
@@ -258,6 +289,7 @@
         var email = el('email').value.trim();
         if (!name || !phone) { el('err').textContent = 'Name and phone are required.'; return; }
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { el('err').textContent = 'A valid email is required — we send your confirmation and receipt there.'; return; }
+        if (IS_STUDENT && !isEdu(email)) { el('err').textContent = EDU_MSG; return; }
 
         var body = Object.assign({}, sel, {
           customer: { name: name, phone: phone, email: email },

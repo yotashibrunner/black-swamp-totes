@@ -41,12 +41,12 @@ router.get('/accessibility', (req, res) => {
 
 // GET /privacy — privacy policy.
 router.get('/privacy', (req, res) => {
-  res.render('privacy', { updated: todayLong(), ownerEmail: config.ownerEmail || 'hello@blackswamptotes.com' });
+  res.render('privacy', { updated: todayLong(), supportEmail: config.supportEmail });
 });
 
 // GET /terms — terms of service.
 router.get('/terms', (req, res) => {
-  res.render('terms', { updated: todayLong(), ownerEmail: config.ownerEmail || 'hello@blackswamptotes.com' });
+  res.render('terms', { updated: todayLong(), supportEmail: config.supportEmail });
 });
 
 // GET /my-booking — customer self-service lookup + cancel.

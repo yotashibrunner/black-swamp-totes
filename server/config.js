@@ -50,7 +50,11 @@ const config = {
   // ── Email — Resend (Phase 5) ────────────────────────────────────────
   // Optional: when unset, confirmation emails are skipped (logged, not sent).
   resendApiKey: process.env.RESEND_API_KEY || '',
+  // FROM address for outbound transactional email (confirmations, receipts).
   fromEmail: process.env.FROM_EMAIL || 'hello@blackswamptotes.com',
+  // Public contact/support address shown on the site (footer, legal pages).
+  // Distinct from fromEmail (outbound) and ownerEmail (internal statements).
+  supportEmail: process.env.SUPPORT_EMAIL || 'support@blackswamptotes.com',
 
   // ── Web Push — VAPID (Phase 8 / Session 3) ──────────────────────────
   // Optional: when unset, push subscribe/send are no-ops (logged). Generate a
