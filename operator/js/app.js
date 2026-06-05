@@ -370,26 +370,52 @@
       return bookings.length;
     }
 
+    // Coming Up — informational rows (name · package · delivery date). No click
+    // target and no action buttons; lighter weight than the action sections.
+    function paintUpcoming(bookings) {
+      const sectionEl = root.querySelector('[data-section="upcoming"]');
+      const listEl = root.querySelector('[data-list="upcoming"]');
+      const countEl = root.querySelector('[data-count="upcoming"]');
+      listEl.replaceChildren();
+      if (!bookings.length) { sectionEl.hidden = true; return; }
+      sectionEl.hidden = false;
+      countEl.textContent = `(${bookings.length})`;
+      for (const b of bookings) {
+        const li = document.createElement('li');
+        li.className = 'up-row';
+        const main = document.createElement('span');
+        main.className = 'up-main';
+        main.textContent = `${b.customer_name || '—'}${b.trailer_name ? ' · ' + b.trailer_name : ''}`;
+        const date = document.createElement('span');
+        date.className = 'up-date muted';
+        date.textContent = fmtDay(b.start_at);
+        li.append(main, date);
+        listEl.appendChild(li);
+      }
+    }
+
     try {
       const data = await api.apiFetch('/api/operator/dashboard');
       const u = data.user || cached || {};
       welcome.textContent = `Signed in as ${u.name || u.email || 'operator'}.`;
-      // Bookings where the customer has texted READY (any active rental).
-      const pickupRequested = (data.active || []).filter((b) => b.pickup_requested_at);
-      // Within "Pickups Today", float READY ones to the top.
-      const retrievals = (data.retrievals || []).slice().sort(
-        (a, b) => (b.pickup_requested_at ? 1 : 0) - (a.pickup_requested_at ? 1 : 0)
-      );
-      const sections = {
-        pickupRequested, pickups: data.pickups, dropoffs: data.dropoffs,
-        retrievals, returns: data.returns, active: data.active,
+
+      // Action sections (clickable → detail with action buttons). Pickup
+      // Requested is painted first so it floats to the top of the dashboard.
+      const actionSections = {
+        pickupRequested: data.pickupRequested || [],
+        dropoffs: data.dropoffs || [],
+        retrievals: data.retrievals || [],
       };
-      const keys = ['pickupRequested', 'pickups', 'dropoffs', 'retrievals', 'returns', 'active'];
-      let total = 0;
-      for (const k of keys) total += paintSection(k, sections[k] || []) || 0;
-      // "Pickup Requested" is a cross-cut of active, so don't let it inflate the
-      // empty-day check (active already counts those bookings).
-      root.querySelector('[data-dash-empty]').hidden = (total - pickupRequested.length) > 0;
+      let actionTotal = 0;
+      for (const k of ['pickupRequested', 'dropoffs', 'retrievals']) {
+        actionTotal += paintSection(k, actionSections[k]) || 0;
+      }
+
+      // Coming Up is a heads-up only — it does not count toward "due today".
+      paintUpcoming(data.upcoming || []);
+
+      // "All clear" when nothing is due today.
+      root.querySelector('[data-dash-empty]').hidden = actionTotal > 0;
 
       // Plan Today's Route — deliveries (drop-off addresses) then pickups
       // (collection addresses) as a Google Maps multi-stop directions link.
@@ -397,7 +423,8 @@
       if (routeBtn) {
         routeBtn.addEventListener('click', () => {
           const deliveryAddresses = (data.dropoffs || []).map((b) => b.delivery_address);
-          const pickupAddresses = (data.retrievals || []).map((b) => b.pickup_address || b.delivery_address);
+          const pickupAddresses = [...(data.pickupRequested || []), ...(data.retrievals || [])]
+            .map((b) => b.pickup_address || b.delivery_address);
           const stops = [...deliveryAddresses, ...pickupAddresses]
             .filter(Boolean)
             .map((a) => encodeURIComponent(a))
@@ -614,13 +641,37 @@
     }
 
     const reopen = () => renderBookingDetail(booking.id, onBack);
+    // After a return is finalized: confirm with a toast and drop back to the
+    // dashboard, where the now-returned booking no longer appears in any section.
+    const afterReturn = () => {
+      toast(`✓ ${booking.ref_code} returned and closed`);
+      (onBack || renderDashboard)();
+    };
+    async function returnAndClose(btn) {
+      actionErr.hidden = true;
+      btn.disabled = true;
+      btn.textContent = 'Marking…';
+      try {
+        await api.apiFetch(`/api/operator/bookings/${booking.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'returned' }),
+        });
+        afterReturn();
+      } catch (err) {
+        if (handleAuth(err)) return;
+        actionErr.textContent = err.message || 'Could not update. Try again.';
+        actionErr.hidden = false;
+        btn.disabled = false;
+        paint();
+      }
+    }
     root.querySelector('[data-pickup]').addEventListener('click', (e) =>
       transition(e.currentTarget, 'out', 'Marking…'));
     root.querySelector('[data-return]').addEventListener('click', (e) => {
       // A held deposit must be settled through the Return Condition screen;
-      // otherwise a return is a simple status transition.
-      if (booking.deposit_status === 'held') renderReturnCondition(booking, reopen);
-      else transition(e.currentTarget, 'returned', 'Marking…');
+      // otherwise a return closes the booking directly.
+      if (booking.deposit_status === 'held') renderReturnCondition(booking, afterReturn);
+      else returnAndClose(e.currentTarget);
     });
     root.querySelector('[data-extend]').addEventListener('click', () => renderExtendRental(booking, reopen));
     root.querySelector('[data-add-charge]').addEventListener('click', () => renderAddCharge(booking, reopen));

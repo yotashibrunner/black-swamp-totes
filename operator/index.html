@@ -156,37 +156,30 @@
         <p class="error" data-notif-error hidden></p>
       </section>
 
-      <p class="empty" data-dash-empty hidden>Nothing scheduled today, and nothing out.</p>
+      <p class="empty" data-dash-empty hidden>✓ All clear — nothing due today.</p>
 
+      <!-- Pickup Requested floats to the top: customer is waiting. -->
       <section class="card sec sec-ready" data-section="pickupRequested" hidden>
         <h2 class="sec-title">✓ Pickup Requested <span class="count" data-count="pickupRequested"></span></h2>
         <p class="muted" style="margin:0 0 8px;font-size:.82rem;">Customers who texted READY — collect from their pickup address.</p>
         <ul class="booking-list" data-list="pickupRequested"></ul>
       </section>
 
-      <section class="card sec sec-pickups" data-section="pickups" hidden>
-        <h2 class="sec-title">Customer Pickups Today <span class="count" data-count="pickups"></span></h2>
-        <ul class="booking-list" data-list="pickups"></ul>
-      </section>
-
       <section class="card sec sec-deliveries" data-section="dropoffs" hidden>
-        <h2 class="sec-title">Deliveries Today <span class="count" data-count="dropoffs"></span></h2>
+        <h2 class="sec-title">📦 Deliver Today <span class="count" data-count="dropoffs"></span></h2>
         <ul class="booking-list" data-list="dropoffs"></ul>
       </section>
 
       <section class="card" data-section="retrievals" hidden>
-        <h2>Pickups Today <span class="count" data-count="retrievals"></span></h2>
+        <h2 class="sec-title">📬 Pickup Today <span class="count" data-count="retrievals"></span></h2>
         <ul class="booking-list" data-list="retrievals"></ul>
       </section>
 
-      <section class="card" data-section="returns" hidden>
-        <h2>Customer Returns Today <span class="count" data-count="returns"></span></h2>
-        <ul class="booking-list" data-list="returns"></ul>
-      </section>
-
-      <section class="card" data-section="active" hidden>
-        <h2>Active Rentals <span class="count" data-count="active"></span></h2>
-        <ul class="booking-list" data-list="active"></ul>
+      <!-- Coming Up — heads-up only, lighter weight, no action buttons. -->
+      <section class="card sec-upcoming" data-section="upcoming" hidden>
+        <h2 class="sec-title">📅 Coming Up — Next 3 Days <span class="count" data-count="upcoming"></span></h2>
+        <p class="muted" style="margin:0 0 8px;font-size:.82rem;">Heads-up only — no action needed today.</p>
+        <ul class="up-list" data-list="upcoming"></ul>
       </section>
     </main>
   </template>

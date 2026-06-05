@@ -334,6 +334,14 @@ input:focus-visible {
 .sec-deliveries { border-left-color: #8ab4f8; }
 .sec-deliveries .sec-title { color: #8ab4f8; }
 
+/* Coming Up — lighter weight, clearly "no action needed". */
+.sec-upcoming { opacity: 0.72; border-left: 4px solid var(--border); }
+.sec-upcoming .sec-title { color: var(--muted); }
+.up-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.up-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.up-row:last-child { border-bottom: 0; }
+.up-date { white-space: nowrap; font-size: 0.84rem; }
+
 /* Delivery address shown prominently in dashboard/schedule rows. */
 .booking-address { color: #8ab4f8 !important; font-weight: 600; white-space: normal; }
 

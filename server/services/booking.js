@@ -394,49 +394,59 @@ const OPERATOR_SELECT = `
 
 // Statuses that represent an upcoming, confirmed-but-not-yet-out rental.
 const UPCOMING_STATUSES = ['paid', 'confirmed'];
+// A booking that is scheduled but not yet out (delivery still ahead).
+const DELIVER_STATUSES = ['pending', 'signed', 'paid', 'confirmed'];
 
-// Today's pickups + returns + currently-out rentals. "Today" is anchored to UTC
-// midnight, matching how availability and the calendar reason about dates
-// elsewhere (utils/date.js). Returns three arrays of operator booking rows.
+// Operator dashboard — only what needs action today, plus a 3-day heads-up:
+//   dropoffs        — being delivered today (scheduled, not yet out)
+//   pickupRequested — customer texted READY (out); action ASAP, floats to top
+//   retrievals      — scheduled pickup due today/overdue (out, no READY yet)
+//   upcoming        — deliveries in the next 3 days (heads-up only, no action)
+// Mid-rental ("active") and completed ("returned") bookings are intentionally
+// excluded — they aren't actionable today and only add clutter. "Today" is
+// UTC-anchored, matching availability/calendar reasoning (utils/date.js).
 async function getDashboard() {
   const today = todayUTC();
-  const tomorrow = addDays(today, 1);
   const t0 = today.toISOString();
-  const t1 = tomorrow.toISOString();
+  const t1 = addDays(today, 1).toISOString(); // tomorrow 00:00 — exclusive end of "today"
+  const t4 = addDays(today, 4).toISOString(); // today+4 00:00 — exclusive end of the +1..+3 window
 
-  // Upcoming-but-not-yet-out rentals starting today, split by fulfillment:
-  //   pickup   → customer comes to the lot       (Pickups Today)
-  //   delivery → operator drives the trailer out (Deliveries — Drop-offs Today)
-  const startingToday = await pool.query(
+  // DELIVER TODAY — delivery (start) date is today, not yet out.
+  const dropoffs = await pool.query(
     `${OPERATOR_SELECT}
       WHERE b.status = ANY($1) AND b.start_at >= $2 AND b.start_at < $3
       ORDER BY b.start_at, t.name`,
-    [UPCOMING_STATUSES, t0, t1]
+    [DELIVER_STATUSES, t0, t1]
   );
-  const pickups = startingToday.rows.filter((b) => b.fulfillment !== 'delivery');
-  const dropoffs = startingToday.rows.filter((b) => b.fulfillment === 'delivery');
 
-  // Out rentals due back today (or overdue), split by fulfillment:
-  //   pickup   → customer brings it to the lot (Returns Today)
-  //   delivery → operator goes to collect it   (Deliveries — Retrievals Today)
-  const dueToday = await pool.query(
+  // PICKUP REQUESTED — customer texted READY, still out. Action ASAP.
+  const pickupRequested = await pool.query(
     `${OPERATOR_SELECT}
-      WHERE b.status = 'out' AND b.end_at <= $1
+      WHERE b.status = 'out' AND b.pickup_requested_at IS NOT NULL
+      ORDER BY b.pickup_requested_at, b.end_at, t.name`
+  );
+
+  // PICKUP TODAY — scheduled pickup due today (or overdue), out, no READY yet.
+  const retrievals = await pool.query(
+    `${OPERATOR_SELECT}
+      WHERE b.status = 'out' AND b.pickup_requested_at IS NULL AND b.end_at < $1
       ORDER BY b.end_at, t.name`,
     [t1]
   );
-  const returns = dueToday.rows.filter((b) => b.fulfillment !== 'delivery');
-  const retrievals = dueToday.rows.filter((b) => b.fulfillment === 'delivery');
 
-  // Active now: everything currently out, soonest-due first.
-  const active = await pool.query(
+  // COMING UP — deliveries in the next 3 days (today+1 .. today+3). Heads-up only.
+  const upcoming = await pool.query(
     `${OPERATOR_SELECT}
-      WHERE b.status = 'out'
-      ORDER BY b.end_at, t.name`
+      WHERE b.status = ANY($1) AND b.start_at >= $2 AND b.start_at < $3
+      ORDER BY b.start_at, t.name`,
+    [DELIVER_STATUSES, t1, t4]
   );
 
   return {
-    pickups, dropoffs, retrievals, returns, active: active.rows,
+    dropoffs: dropoffs.rows,
+    pickupRequested: pickupRequested.rows,
+    retrievals: retrievals.rows,
+    upcoming: upcoming.rows,
   };
 }
 

@@ -6,7 +6,7 @@
 //
 // Routes:
 //   GET   /api/operator/me            the logged-in operator
-//   GET   /api/operator/dashboard     today's pickups + returns + active rentals
+//   GET   /api/operator/dashboard     today's deliveries + due/READY pickups + 3-day heads-up
 //   GET   /api/operator/schedule      chronological bookings for a given day
 //   GET   /api/operator/bookings/:id  one booking, full detail
 //   PATCH /api/operator/bookings/:id  mark picked up / returned, edit notes
@@ -200,17 +200,17 @@ function serializeBooking(b) {
   };
 }
 
-// GET /api/operator/dashboard — today's pickups, returns, and active rentals.
+// GET /api/operator/dashboard — only what needs action today (deliveries,
+// READY pickups, due pickups) plus a 3-day delivery heads-up.
 router.get('/dashboard', async (req, res, next) => {
   try {
-    const { pickups, dropoffs, retrievals, returns, active } = await bookingSvc.getDashboard();
+    const { dropoffs, pickupRequested, retrievals, upcoming } = await bookingSvc.getDashboard();
     res.json({
       user: req.user,
-      pickups: pickups.map(serializeBooking),
       dropoffs: dropoffs.map(serializeBooking),
+      pickupRequested: pickupRequested.map(serializeBooking),
       retrievals: retrievals.map(serializeBooking),
-      returns: returns.map(serializeBooking),
-      active: active.map(serializeBooking),
+      upcoming: upcoming.map(serializeBooking),
     });
   } catch (err) {
     next(err);
