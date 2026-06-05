@@ -51,6 +51,10 @@ app.get('/health', (req, res) => {
 // requires a valid access token.
 app.use('/api/auth', authRoutes);
 app.use('/api/operator', requireAuth, operatorRoutes);
+// Automated reminders for an external scheduler (cron-job.org). Guarded by its
+// own CRON_SECRET bearer token, so it's mounted before the public /api router.
+const cronRoutes = require('./routes/cron');
+app.use('/api/cron', cronRoutes);
 // Public customer API (trailers, availability, quote). No auth.
 app.use('/api', apiPublicRoutes);
 
