@@ -16,8 +16,6 @@
     .sum-table { width: 100%; border-collapse: collapse; margin: 12px 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
     .sum-table td { padding: 6px 0; border-bottom: 1px dashed var(--line-2); vertical-align: top; }
     .sum-table td:first-child { color: var(--ink-dim); width: 42%; }
-    .draft-banner { background: rgba(255,212,0,.12); border: 1px solid var(--hazard); color: var(--hazard);
-      font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; }
     .sig-canvas { width: 100%; height: 140px; background: #fff; border-radius: 6px; touch-action: none; display: block; }
     .sig-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
     .consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; font-size: 13px; color: var(--ink-dim); line-height: 1.4; }
@@ -42,7 +40,6 @@
       <section class="agreement">
         <div class="crumb">Reserve / Step 2 of 3 — Rental Agreement</div>
         <h1 class="display" style="font-size:clamp(30px,5vw,46px);"><%= agreement.title %></h1>
-        <div class="draft-banner">DRAFT TEMPLATE — pending Ohio attorney review. Contract version <%= agreement.version %>.</div>
 
         <table class="sum-table">
           <% agreement.summary.forEach(function (row) { %>
