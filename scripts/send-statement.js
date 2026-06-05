@@ -1,7 +1,7 @@
 'use strict';
 
-// Monthly operator statement cron. Runs on the 1st of each month and emails the
-// PRIOR month's statement PDF to OWNER_EMAIL + all active operator/admin
+// Monthly business summary cron. Runs on the 1st of each month and emails the
+// PRIOR month's summary PDF to OWNER_EMAIL + all active operator/admin
 // accounts. Best-effort and safe when email is unconfigured (logs + skips).
 //
 //   node scripts/send-statement.js
@@ -29,8 +29,8 @@ async function main() {
 
   const result = await emailSvc.sendStatement(recipients, pdf, statement);
   console.log(
-    `[statement] ${statement.label}: ${statement.totals.booking_count} bookings, `
-    + `total due ${statement.totals.total_due_fmt} → ${recipients.join(', ') || '(no recipients)'} :: ${JSON.stringify(result)}`
+    `[summary] ${statement.label}: ${statement.totals.booking_count} bookings, `
+    + `net ${statement.totals.net_fmt} → ${recipients.join(', ') || '(no recipients)'} :: ${JSON.stringify(result)}`
   );
 }
 

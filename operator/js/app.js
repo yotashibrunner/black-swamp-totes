@@ -2131,35 +2131,58 @@
     );
   }
 
-  // ── Reports (admin + owner) ──────────────────────────────────────────────
-  function currentYM() { return new Date().toISOString().slice(0, 7); }
-  function ymRange(ym) {
-    const [y, m] = ym.split('-').map(Number);
-    const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-    return { from: `${ym}-01`, to: `${ym}-${String(last).padStart(2, '0')}`, y, m };
+  // ── Business Reports (admin + owner) ─────────────────────────────────────
+  // Sole owner/operator business: all revenue is owner revenue. No commission,
+  // no split. Period selector drives a [from, to] date range; current ops are
+  // a point-in-time snapshot.
+  function reportRangeFor(period) {
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const isoOf = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    let from = today; let to = today; let label = '';
+    if (period === 'week') {
+      const dow = (today.getUTCDay() + 6) % 7; // Monday = 0
+      from = new Date(today); from.setUTCDate(today.getUTCDate() - dow);
+      label = 'This week';
+    } else if (period === 'month') {
+      from = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+      label = 'This month';
+    } else if (period === 'lastmonth') {
+      from = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1));
+      to = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0)); // last day of prev month
+      label = 'Last month';
+    } else if (period === 'ytd') {
+      from = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
+      label = 'Year to date';
+    } else { // all
+      from = new Date(Date.UTC(2020, 0, 1));
+      label = 'All time';
+    }
+    return { from: isoOf(from), to: isoOf(to), label };
   }
 
   async function renderReports() {
     mount('tpl-reports');
     root.querySelector('[data-back]').addEventListener('click', () => renderDashboard());
-    const monthEl = root.querySelector('[data-month]');
     const loadingEl = root.querySelector('[data-loading]');
     const errEl = root.querySelector('[data-error]');
     const reportEl = root.querySelector('[data-report]');
-    const isAdmin = api.auth.user && api.auth.user.role === 'admin';
-    monthEl.value = currentYM();
+    const rangeEl = root.querySelector('[data-range]');
+    const segWrap = root.querySelector('[data-periods]');
+    let period = 'month';
 
     async function load() {
-      const ym = monthEl.value || currentYM();
-      const { from, to, y, m } = ymRange(ym);
+      const r = reportRangeFor(period);
+      rangeEl.textContent = period === 'all' ? 'All time' : `${r.from} → ${r.to}`;
       loadingEl.hidden = false; errEl.hidden = true; reportEl.hidden = true;
-      let summary; let trailers; let bookings;
+      let summary; let packages; let periods; let ops;
       try {
-        const qs = `from=${from}&to=${to}`;
-        [summary, trailers, bookings] = await Promise.all([
+        const qs = `from=${r.from}&to=${r.to}`;
+        [summary, packages, periods, ops] = await Promise.all([
           api.apiFetch(`/api/operator/reports/summary?${qs}`).then((d) => d.summary),
-          api.apiFetch(`/api/operator/reports/by-trailer?${qs}`).then((d) => d.trailers),
-          api.apiFetch(`/api/operator/reports/bookings?${qs}`).then((d) => d.bookings),
+          api.apiFetch(`/api/operator/reports/by-package?${qs}`).then((d) => d.packages),
+          api.apiFetch(`/api/operator/reports/by-period?${qs}`).then((d) => d.periods),
+          api.apiFetch('/api/operator/reports/current-ops').then((d) => d.ops),
         ]);
       } catch (err) {
         if (handleAuth(err)) return;
@@ -2170,101 +2193,82 @@
       }
       loadingEl.hidden = true;
 
-      // Summary cards.
+      // Revenue summary cards.
       const cards = [
         ['Gross Revenue', summary.gross_fmt],
-        ['Stripe Fees', '- ' + summary.stripe_fees_fmt],
+        ['Stripe Fees (est.)', '- ' + summary.stripe_fees_fmt],
         ['Net Revenue', summary.net_fmt],
-        [`Commission (${Math.round(summary.commission_rate * 100)}%)`, summary.commission_fmt],
-        [`Retainer · ${summary.retainer_tier}`, summary.retainer_fmt],
-        ['Total Due to Operator', summary.total_due_fmt],
+        ['Bookings', String(summary.booking_count)],
+        ['Avg Booking Value', summary.avg_booking_fmt],
       ];
       const grid = root.querySelector('[data-summary]');
       grid.replaceChildren();
-      cards.forEach(([label, val], i) => {
+      cards.forEach(([label, val]) => {
         const c = document.createElement('div');
-        c.className = 'stat-card' + (i === cards.length - 1 ? ' stat-total' : '');
+        c.className = 'stat-card' + (label === 'Net Revenue' ? ' stat-total' : '');
         c.innerHTML = `<span class="stat-label"></span><span class="stat-val"></span>`;
         c.querySelector('.stat-label').textContent = label;
         c.querySelector('.stat-val').textContent = val || '$0';
         grid.appendChild(c);
       });
 
-      // Statement / CSV (admin only).
-      const genCard = root.querySelector('[data-gen-card]');
-      genCard.hidden = !isAdmin;
-      if (isAdmin && !genCard.dataset.wired) {
-        genCard.dataset.wired = '1';
-        const genErr = root.querySelector('[data-gen-error]');
-        const genOk = root.querySelector('[data-gen-ok]');
-        root.querySelector('[data-generate]').addEventListener('click', async (e) => {
-          genErr.hidden = true; genOk.hidden = true;
-          const ymNow = monthEl.value || currentYM(); const [yy, mm] = ymNow.split('-').map(Number);
-          const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Sending…';
-          try {
-            const r = await api.apiFetch('/api/operator/reports/send-statement', {
-              method: 'POST', body: JSON.stringify({ month: mm, year: yy }),
-            });
-            genOk.textContent = `Statement for ${r.label} emailed to ${r.recipients.join(', ')} (total due ${r.total_due_fmt}).`;
-            genOk.hidden = false;
-          } catch (err) {
-            if (handleAuth(err)) return;
-            genErr.textContent = err.message || 'Could not send statement.';
-            genErr.hidden = false;
-          } finally { btn.disabled = false; btn.textContent = 'Generate & email statement'; }
-        });
-        root.querySelector('[data-csv]').addEventListener('click', async () => {
-          const ymNow = monthEl.value || currentYM(); const { from: f, to: t } = ymRange(ymNow);
-          try {
-            const res = await fetch(`/api/operator/reports/export.csv?from=${f}&to=${t}`, {
-              headers: { Authorization: `Bearer ${api.auth.access}` },
-            });
-            if (!res.ok) throw new Error('Export failed (' + res.status + ')');
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = `black-swamp-totes-bookings-${ymNow}.csv`;
-            document.body.appendChild(a); a.click(); a.remove();
-            URL.revokeObjectURL(url);
-          } catch (err) { genErr.textContent = err.message; genErr.hidden = false; }
-        });
+      // Revenue by package.
+      const bpEl = root.querySelector('[data-by-package]');
+      bpEl.replaceChildren();
+      root.querySelector('[data-bp-empty]').hidden = packages.length > 0;
+      for (const p of packages) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td></td><td class="num"></td><td class="num"></td><td class="num"></td>`;
+        tr.children[0].textContent = p.package;
+        tr.children[1].textContent = p.count;
+        tr.children[2].textContent = p.gross_fmt;
+        tr.children[3].textContent = `${p.pct}%`;
+        bpEl.appendChild(tr);
       }
 
-      // By-trailer.
-      const btEl = root.querySelector('[data-by-trailer]');
-      btEl.replaceChildren();
-      root.querySelector('[data-bt-empty]').hidden = trailers.length > 0;
-      for (const t of trailers) {
+      // Revenue by period (monthly).
+      const pdEl = root.querySelector('[data-by-period]');
+      pdEl.replaceChildren();
+      root.querySelector('[data-pd-empty]').hidden = periods.length > 0;
+      for (const p of periods) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td></td><td class="num"></td><td class="num"></td><td class="num"></td>`;
+        tr.children[0].textContent = p.label;
+        tr.children[1].textContent = p.count;
+        tr.children[2].textContent = p.gross_fmt;
+        tr.children[3].textContent = p.net_fmt;
+        pdEl.appendChild(tr);
+      }
+
+      // Current operations (point-in-time).
+      const opsEl = root.querySelector('[data-ops]');
+      opsEl.replaceChildren();
+      const opsRows = [
+        ['Active rentals (bins out now)', String(ops.active_rentals)],
+        ['Bins in circulation', `${ops.bins_out} bins · ${ops.bin_days_out} bin-days out`],
+        ['Pending deliveries', String(ops.pending_deliveries)],
+        ['Pending pickups', String(ops.pending_pickups)],
+        ['Pickup requested (texted READY)', String(ops.pickup_requested)],
+      ];
+      for (const [label, val] of opsRows) {
         const li = document.createElement('li');
         li.className = 'rep-row';
-        li.innerHTML = `<span class="rep-main"></span><span class="rep-amt"></span>`;
-        li.querySelector('.rep-main').textContent = `${t.trailer} · ${t.count} booking${t.count === 1 ? '' : 's'} · ${t.pct}%`;
-        li.querySelector('.rep-amt').textContent = t.gross_fmt;
-        btEl.appendChild(li);
-      }
-
-      // Bookings.
-      const bkEl = root.querySelector('[data-bookings]');
-      bkEl.replaceChildren();
-      root.querySelector('[data-bk-count]').textContent = bookings.length ? `(${bookings.length})` : '';
-      root.querySelector('[data-bk-empty]').hidden = bookings.length > 0;
-      for (const b of bookings) {
-        const li = document.createElement('li');
-        li.className = 'rep-row rep-booking';
-        const main = document.createElement('span'); main.className = 'rep-main';
-        main.textContent = `${fmtDay(b.date)} · ${b.customer_name} · ${b.trailer_name}`;
-        const sub = document.createElement('span'); sub.className = 'rep-sub muted';
-        sub.textContent = `gross ${b.gross_fmt} · fee ${b.stripe_fee_fmt} · net ${b.net_fmt} · comm ${b.commission_fmt} · ${b.status}`;
-        const wrap = document.createElement('span'); wrap.className = 'rep-meta';
-        wrap.append(main, sub);
-        li.appendChild(wrap);
-        bkEl.appendChild(li);
+        const a = document.createElement('span'); a.className = 'rep-main'; a.textContent = label;
+        const b = document.createElement('span'); b.className = 'rep-amt'; b.textContent = val;
+        li.append(a, b);
+        opsEl.appendChild(li);
       }
 
       reportEl.hidden = false;
     }
 
-    monthEl.addEventListener('change', load);
+    segWrap.querySelectorAll('[data-period]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        period = btn.dataset.period;
+        segWrap.querySelectorAll('[data-period]').forEach((b) => b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+        load();
+      });
+    });
     load();
   }
 

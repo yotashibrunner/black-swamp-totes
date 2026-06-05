@@ -143,7 +143,7 @@ async function sendTest(to) {
   }
 }
 
-// Email the monthly statement PDF to one or more recipients. Returns
+// Email the monthly business summary PDF to one or more recipients. Returns
 // {id}/{skipped}/{error} so callers can report the outcome.
 async function sendStatement(recipients, pdf, statement) {
   const resend = getClient();
@@ -156,26 +156,24 @@ async function sendStatement(recipients, pdf, statement) {
   const td = 'style="padding:4px 14px 4px 0;color:#555"';
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:560px">
-      <h2 style="color:#166534">Operator statement — ${statement.label}</h2>
+      <h2 style="color:#166534">Business summary — ${statement.label}</h2>
       <table style="font-size:14px;border-collapse:collapse">
         <tr><td ${td}>Bookings</td><td>${t.booking_count}</td></tr>
+        <tr><td ${td}>Average booking value</td><td>${t.avg_booking_fmt}</td></tr>
         <tr><td ${td}>Gross revenue</td><td>${t.gross_fmt}</td></tr>
-        <tr><td ${td}>Stripe fees</td><td>- ${t.stripe_fees_fmt}</td></tr>
-        <tr><td ${td}>Net revenue</td><td><strong>${t.net_fmt}</strong></td></tr>
-        <tr><td ${td}>Commission (${(t.commission_rate * 100).toFixed(0)}%)</td><td>${t.commission_fmt}</td></tr>
-        <tr><td ${td}>Retainer (${t.retainer_tier})</td><td>${t.retainer_fmt}</td></tr>
-        <tr><td ${td}><strong>Total due to operator</strong></td><td><strong style="color:#166534">${t.total_due_fmt}</strong></td></tr>
+        <tr><td ${td}>Stripe fees (est.)</td><td>- ${t.stripe_fees_fmt}</td></tr>
+        <tr><td ${td}><strong>Net revenue</strong></td><td><strong style="color:#166534">${t.net_fmt}</strong></td></tr>
       </table>
-      <p>The full itemized statement is attached as a PDF.</p>
+      <p>The full itemized summary is attached as a PDF.</p>
       <p style="color:#888;font-size:12px">${'Black Swamp Totes'} · (419) 972-1669</p>
     </div>`;
 
-  const filename = `black-swamp-totes-statement-${statement.year}-${String(statement.month).padStart(2, '0')}.pdf`;
+  const filename = `black-swamp-totes-summary-${statement.year}-${String(statement.month).padStart(2, '0')}.pdf`;
   try {
     const { data, error } = await resend.emails.send({
       from: config.fromEmail,
       to,
-      subject: `Black Swamp Totes operator statement — ${statement.label}`,
+      subject: `Black Swamp Totes — monthly business summary — ${statement.label}`,
       html,
       attachments: pdf ? [{ filename, content: pdf }] : undefined,
     });

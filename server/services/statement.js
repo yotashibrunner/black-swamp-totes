@@ -1,7 +1,8 @@
 'use strict';
 
-// Monthly operator statement PDF (pdfkit). Itemizes the prior month's paid
-// bookings, then the commission/retainer calculation and total due.
+// Monthly business summary PDF (pdfkit). Itemizes the prior month's paid
+// bookings and the owner revenue totals (gross / Stripe fees / net). This is a
+// sole owner/operator business — no commission, no revenue split.
 
 const PDFDocument = require('pdfkit');
 const { formatCents } = require('../utils/money');
@@ -27,7 +28,7 @@ function generateStatementPdf(statement) {
 
       doc.font('Helvetica-Bold').fontSize(18).fillColor('#000').text(BUSINESS_NAME);
       doc.font('Helvetica').fontSize(11).fillColor('#555')
-        .text(`Operator Statement — ${statement.label}`);
+        .text(`Monthly Business Summary — ${statement.label}`);
       doc.moveDown(1);
 
       // Summary block.
@@ -41,28 +42,26 @@ function generateStatementPdf(statement) {
         doc.moveDown(0.35);
       };
       kv('Bookings', String(t.booking_count));
+      kv('Average booking value', formatCents(t.avg_booking_cents));
       kv('Gross revenue', formatCents(t.gross_cents));
       kv('Stripe fees (est. 2.9% + $0.30)', `- ${formatCents(t.stripe_fees_cents)}`);
-      kv('Net revenue', formatCents(t.net_cents), true);
-      kv(`Commission (${(t.commission_rate * 100).toFixed(0)}% of net)`, formatCents(t.commission_cents));
-      kv(`Retainer (${t.retainer_tier} tier)`, formatCents(t.retainer_cents));
       doc.moveDown(0.2);
       doc.font('Helvetica-Bold').fontSize(13).fillColor('#166534');
-      kv('TOTAL DUE TO OPERATOR', formatCents(t.total_due_cents), true);
+      kv('NET REVENUE', formatCents(t.net_cents), true);
 
       doc.moveDown(0.8);
       doc.fillColor('#000').font('Helvetica-Bold').fontSize(13).text('Bookings');
       doc.moveDown(0.4);
 
       // Itemized list. Simple monospace-ish columns via fixed x positions.
-      const cols = { date: 54, ref: 110, cust: 190, gross: 380, comm: 470 };
+      const cols = { date: 54, ref: 110, cust: 190, gross: 380, net: 470 };
       const headerRow = (y) => {
         doc.font('Helvetica-Bold').fontSize(9).fillColor('#888');
         doc.text('Date', cols.date, y);
         doc.text('Ref', cols.ref, y);
-        doc.text('Customer / Trailer', cols.cust, y);
+        doc.text('Customer / Package', cols.cust, y);
         doc.text('Gross', cols.gross, y, { width: 80, align: 'right' });
-        doc.text('Comm.', cols.comm, y, { width: 80, align: 'right' });
+        doc.text('Net', cols.net, y, { width: 80, align: 'right' });
       };
       headerRow(doc.y);
       doc.moveDown(0.3);
@@ -78,9 +77,9 @@ function generateStatementPdf(statement) {
         doc.font('Helvetica').fontSize(9).fillColor('#222');
         doc.text(fmtDate(it.date), cols.date, y);
         doc.text(it.ref_code, cols.ref, y);
-        doc.text(`${it.customer_name} · ${it.trailer_name}`, cols.cust, y, { width: 185 });
+        doc.text(`${it.customer_name} · ${it.package_name}`, cols.cust, y, { width: 185 });
         doc.text(formatCents(it.gross_cents), cols.gross, y, { width: 80, align: 'right' });
-        doc.text(formatCents(it.commission_cents), cols.comm, y, { width: 80, align: 'right' });
+        doc.text(formatCents(it.net_cents), cols.net, y, { width: 80, align: 'right' });
         doc.moveDown(0.5);
       }
 

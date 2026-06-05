@@ -1,36 +1,18 @@
 'use strict';
 
-// Sales / commission reporting. Revenue is recognized on a booking's created_at
-// (the sale date; online bookings are paid within minutes of creation) and only
-// bookings that actually collected money (amount_paid_cents > 0) count.
+// Owner business reporting for Black Swamp Totes. This is a sole owner/operator
+// business — there is no commission and no revenue split. All revenue is owner
+// revenue. Revenue is recognized on a booking's created_at (the sale date;
+// online bookings are paid within minutes of creation) and only bookings that
+// actually collected money (amount_paid_cents > 0) count.
 //
 // Money model (all integer cents):
 //   gross      = total charged
 //   stripe fee = estimated 2.9% + $0.30 per paid booking
-//   net        = gross - stripe fee
-//   commission = net * COMMISSION_RATE (operator's cut, default 15%)
-//   retainer   = flat monthly fee by revenue tier (below)
-//   total due  = commission + retainer
-// Adjust COMMISSION_RATE (env) and RETAINER_TIERS to your actual agreement.
+//   net        = gross - stripe fees
 
 const { query } = require('../db');
-const config = require('../config');
 const { formatCents } = require('../utils/money');
-
-const COMMISSION_RATE = config.commissionRate;
-
-// Flat monthly retainer by gross-revenue tier. Highest matching tier wins.
-const RETAINER_TIERS = [
-  { name: 'Starter', minGrossCents: 0, retainerCents: 0 },
-  { name: 'Growth', minGrossCents: 300000, retainerCents: 15000 },   // ≥ $3,000 → $150
-  { name: 'Scale', minGrossCents: 750000, retainerCents: 30000 },    // ≥ $7,500 → $300
-];
-
-function tierFor(grossCents) {
-  let tier = RETAINER_TIERS[0];
-  for (const t of RETAINER_TIERS) if (grossCents >= t.minGrossCents) tier = t;
-  return tier;
-}
 
 // Estimated Stripe processing fee for a charge (2.9% + 30¢).
 function stripeFee(totalCents) {
@@ -51,8 +33,8 @@ function monthRange(month, year) {
 async function paidBookingsInRange(from, to) {
   const { rows } = await query(
     `SELECT b.ref_code, b.created_at, b.start_at, b.end_at, b.status, b.fulfillment,
-            b.total_cents, b.amount_paid_cents, b.base_amount_cents, b.tax_cents, b.delivery_fee_cents,
-            t.name AS trailer_name, t.slug AS trailer_slug,
+            b.total_cents, b.amount_paid_cents, b.bin_count,
+            t.name AS package_name, t.slug AS package_slug,
             c.name AS customer_name, c.phone AS customer_phone
        FROM bookings b
        JOIN trailers t ON t.id = b.trailer_id
@@ -64,34 +46,18 @@ async function paidBookingsInRange(from, to) {
   return rows;
 }
 
-// One booking → its financial breakdown.
-function lineFor(b) {
-  const gross = b.total_cents;
-  const fee = stripeFee(gross);
-  const net = gross - fee;
-  const commission = Math.round(net * COMMISSION_RATE);
-  return { gross, fee, net, commission };
-}
-
+// Revenue summary: gross, estimated Stripe fees, net, booking count, average.
 function summarize(rows) {
-  let gross = 0; let fees = 0; let net = 0; let commission = 0;
-  for (const b of rows) {
-    const l = lineFor(b);
-    gross += l.gross; fees += l.fee; net += l.net; commission += l.commission;
-  }
-  const tier = tierFor(gross);
-  const retainer = tier.retainerCents;
-  const totalDue = commission + retainer;
+  let gross = 0; let fees = 0;
+  for (const b of rows) { gross += b.total_cents; fees += stripeFee(b.total_cents); }
+  const net = gross - fees;
+  const count = rows.length;
+  const avg = count ? Math.round(gross / count) : 0;
   return {
-    booking_count: rows.length,
-    commission_rate: COMMISSION_RATE,
-    gross_cents: gross, stripe_fees_cents: fees, net_cents: net,
-    commission_cents: commission,
-    retainer_tier: tier.name, retainer_cents: retainer,
-    total_due_cents: totalDue,
-    // Formatted for display.
-    gross_fmt: formatCents(gross), stripe_fees_fmt: formatCents(fees), net_fmt: formatCents(net),
-    commission_fmt: formatCents(commission), retainer_fmt: formatCents(retainer), total_due_fmt: formatCents(totalDue),
+    booking_count: count,
+    gross_cents: gross, stripe_fees_cents: fees, net_cents: net, avg_booking_cents: avg,
+    gross_fmt: formatCents(gross), stripe_fees_fmt: formatCents(fees),
+    net_fmt: formatCents(net), avg_booking_fmt: formatCents(avg),
   };
 }
 
@@ -99,13 +65,14 @@ async function summary(from, to) {
   return summarize(await paidBookingsInRange(from, to));
 }
 
-async function byTrailer(from, to) {
+// Revenue by package: name, # bookings, gross, % of total gross.
+async function byPackage(from, to) {
   const rows = await paidBookingsInRange(from, to);
   const total = rows.reduce((s, b) => s + b.total_cents, 0) || 1;
   const map = new Map();
   for (const b of rows) {
-    const key = b.trailer_slug;
-    const e = map.get(key) || { trailer: b.trailer_name, slug: key, count: 0, gross_cents: 0 };
+    const key = b.package_slug;
+    const e = map.get(key) || { package: b.package_name, slug: key, count: 0, gross_cents: 0 };
     e.count += 1; e.gross_cents += b.total_cents;
     map.set(key, e);
   }
@@ -114,24 +81,66 @@ async function byTrailer(from, to) {
     .map((e) => ({ ...e, gross_fmt: formatCents(e.gross_cents), pct: Math.round((e.gross_cents / total) * 1000) / 10 }));
 }
 
+// Revenue by period: one row per calendar month in range, most recent first.
+async function byPeriod(from, to) {
+  const rows = await paidBookingsInRange(from, to);
+  const map = new Map();
+  for (const b of rows) {
+    const d = new Date(b.created_at);
+    const y = d.getUTCFullYear(); const m = d.getUTCMonth() + 1;
+    const key = `${y}-${String(m).padStart(2, '0')}`;
+    const e = map.get(key) || {
+      key, year: y, month: m,
+      label: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+      count: 0, gross_cents: 0, fees_cents: 0,
+    };
+    e.count += 1; e.gross_cents += b.total_cents; e.fees_cents += stripeFee(b.total_cents);
+    map.set(key, e);
+  }
+  return [...map.values()]
+    .sort((a, b) => (a.key < b.key ? 1 : (a.key > b.key ? -1 : 0)))
+    .map((e) => ({
+      key: e.key, label: e.label, year: e.year, month: e.month, count: e.count,
+      gross_cents: e.gross_cents, net_cents: e.gross_cents - e.fees_cents,
+      gross_fmt: formatCents(e.gross_cents), net_fmt: formatCents(e.gross_cents - e.fees_cents),
+    }));
+}
+
+// Current operations snapshot (point-in-time, not period-bound).
+async function currentOps() {
+  const { rows } = await query(
+    `SELECT
+        COUNT(*) FILTER (WHERE status = 'out')::int AS active_rentals,
+        COALESCE(SUM(bin_count) FILTER (WHERE status = 'out'), 0)::int AS bins_out,
+        COALESCE(SUM(bin_count * GREATEST(0, (end_at::date - start_at::date)))
+                 FILTER (WHERE status = 'out'), 0)::int AS bin_days_out,
+        COUNT(*) FILTER (WHERE status = 'paid')::int AS pending_deliveries,
+        COUNT(*) FILTER (WHERE status = 'out' AND end_at <= NOW())::int AS pending_pickups,
+        COUNT(*) FILTER (WHERE status = 'out' AND pickup_requested_at IS NOT NULL)::int AS pickup_requested
+       FROM bookings`
+  );
+  return rows[0];
+}
+
+// Per-booking breakdown (gross / fee / net) for CSV export and the statement.
 async function bookingsBreakdown(from, to) {
   const rows = await paidBookingsInRange(from, to);
   return rows.map((b) => {
-    const l = lineFor(b);
+    const fee = stripeFee(b.total_cents);
+    const net = b.total_cents - fee;
     return {
-      ref_code: b.ref_code,
-      date: b.created_at,
+      ref_code: b.ref_code, date: b.created_at,
       customer_name: b.customer_name, customer_phone: b.customer_phone,
-      trailer_name: b.trailer_name,
+      package_name: b.package_name,
       start_at: b.start_at, end_at: b.end_at,
       status: b.status, fulfillment: b.fulfillment,
-      gross_cents: l.gross, stripe_fee_cents: l.fee, net_cents: l.net, commission_cents: l.commission,
-      gross_fmt: formatCents(l.gross), stripe_fee_fmt: formatCents(l.fee), net_fmt: formatCents(l.net), commission_fmt: formatCents(l.commission),
+      gross_cents: b.total_cents, stripe_fee_cents: fee, net_cents: net,
+      gross_fmt: formatCents(b.total_cents), stripe_fee_fmt: formatCents(fee), net_fmt: formatCents(net),
     };
   });
 }
 
-// Full statement for a month: range label, itemized bookings, totals.
+// Monthly business summary (used by the auto-emailed PDF). Owner revenue only.
 async function statement(month, year) {
   const range = monthRange(month, year);
   const rows = await paidBookingsInRange(range.from, range.to);
@@ -151,14 +160,14 @@ function toCsv(rows) {
   };
   const dollars = (c) => (c / 100).toFixed(2);
   const dateOnly = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
-  const header = ['ref_code', 'date', 'customer_name', 'phone', 'trailer', 'start', 'end',
-    'gross', 'stripe_fee', 'net', 'commission', 'status', 'fulfillment'];
+  const header = ['ref_code', 'date', 'customer_name', 'phone', 'package', 'start', 'end',
+    'gross', 'stripe_fee', 'net', 'status', 'fulfillment'];
   const lines = [header.join(',')];
   for (const r of rows) {
     lines.push([
-      r.ref_code, dateOnly(r.date), r.customer_name, r.customer_phone, r.trailer_name,
+      r.ref_code, dateOnly(r.date), r.customer_name, r.customer_phone, r.package_name,
       dateOnly(r.start_at), dateOnly(r.end_at),
-      dollars(r.gross_cents), dollars(r.stripe_fee_cents), dollars(r.net_cents), dollars(r.commission_cents),
+      dollars(r.gross_cents), dollars(r.stripe_fee_cents), dollars(r.net_cents),
       r.status, r.fulfillment,
     ].map(esc).join(','));
   }
@@ -166,6 +175,6 @@ function toCsv(rows) {
 }
 
 module.exports = {
-  COMMISSION_RATE, RETAINER_TIERS,
-  monthRange, summary, byTrailer, bookingsBreakdown, statement, toCsv, stripeFee,
+  stripeFee, monthRange,
+  summary, byPackage, byPeriod, currentOps, bookingsBreakdown, statement, toCsv,
 };

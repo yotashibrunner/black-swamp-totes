@@ -856,41 +856,52 @@
   <template id="tpl-reports">
     <header class="topbar">
       <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
-      <span class="topbar-title">Reports</span>
+      <span class="topbar-title">Business Reports</span>
       <span class="topbar-spacer"></span>
     </header>
 
     <main class="screen content">
-      <div class="card date-bar">
-        <label class="sr-only" for="rep-month">Month</label>
-        <input type="month" id="rep-month" class="date-input" data-month />
+      <p class="rep-eyebrow">Business Reports — Black Swamp Totes</p>
+
+      <div class="seg" role="group" aria-label="Report period" data-periods>
+        <button type="button" class="seg-btn" data-period="week">This week</button>
+        <button type="button" class="seg-btn" data-period="month" aria-pressed="true">This month</button>
+        <button type="button" class="seg-btn" data-period="lastmonth">Last month</button>
+        <button type="button" class="seg-btn" data-period="ytd">YTD</button>
+        <button type="button" class="seg-btn" data-period="all">All time</button>
       </div>
+      <p class="rep-range muted" data-range></p>
+
       <p class="empty" data-loading>Loading…</p>
       <p class="error" data-error hidden></p>
 
       <div data-report hidden>
-        <div class="stat-grid" data-summary></div>
-
-        <section class="card" data-gen-card hidden>
-          <h2>Statement</h2>
-          <div class="notif-actions">
-            <button type="button" class="btn btn-primary" data-generate>Generate &amp; email statement</button>
-            <button type="button" class="btn btn-ghost" data-csv>Download CSV</button>
-          </div>
-          <p class="error" data-gen-error hidden></p>
-          <p class="saved muted" data-gen-ok hidden></p>
+        <section class="card">
+          <h2>Revenue Summary</h2>
+          <div class="stat-grid" data-summary></div>
         </section>
 
         <section class="card">
-          <h2>Revenue by trailer</h2>
-          <ul class="rep-list" data-by-trailer></ul>
-          <p class="empty" data-bt-empty hidden>No revenue in this period.</p>
+          <h2>Revenue by Package</h2>
+          <table class="rep-table">
+            <thead><tr><th>Package</th><th class="num">Bookings</th><th class="num">Gross</th><th class="num">% of Total</th></tr></thead>
+            <tbody data-by-package></tbody>
+          </table>
+          <p class="empty" data-bp-empty hidden>No revenue in this period.</p>
         </section>
 
         <section class="card">
-          <h2>Bookings <span class="count" data-bk-count></span></h2>
-          <ul class="rep-list" data-bookings></ul>
-          <p class="empty" data-bk-empty hidden>No paid bookings in this period.</p>
+          <h2>Revenue by Period</h2>
+          <table class="rep-table">
+            <thead><tr><th>Month</th><th class="num">Bookings</th><th class="num">Gross</th><th class="num">Net</th></tr></thead>
+            <tbody data-by-period></tbody>
+          </table>
+          <p class="empty" data-pd-empty hidden>No revenue in this period.</p>
+        </section>
+
+        <section class="card">
+          <h2>Current Operations</h2>
+          <ul class="rep-list" data-ops></ul>
         </section>
       </div>
     </main>

@@ -563,6 +563,17 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 .rep-row:last-child { border-bottom: 0; }
 .rep-main { font-size: 0.9rem; }
 .rep-amt { font-weight: 700; white-space: nowrap; }
+
+/* Business Reports */
+.rep-eyebrow { font-size: 0.82rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; margin: 2px 0 12px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.seg .seg-btn { flex: 1 1 auto; white-space: nowrap; }
+.rep-range { font-size: 0.8rem; margin: 0 0 12px; }
+.rep-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.rep-table th, .rep-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+.rep-table th { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
+.rep-table th.num, .rep-table td.num { text-align: right; white-space: nowrap; }
+.rep-table tbody tr:last-child td { border-bottom: 0; }
 .rep-booking .rep-meta { display: flex; flex-direction: column; gap: 3px; }
 .rep-sub { font-size: 0.78rem; }
 

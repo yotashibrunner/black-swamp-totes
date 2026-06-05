@@ -634,10 +634,24 @@ router.get('/reports/bookings', reportAccess, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/reports/by-trailer', reportAccess, async (req, res, next) => {
+router.get('/reports/by-package', reportAccess, async (req, res, next) => {
   try {
     const { fromIso, toIso } = reportRange(req);
-    res.json({ from: fromIso, to: toIso, trailers: await reportsSvc.byTrailer(fromIso, toIso) });
+    res.json({ from: fromIso, to: toIso, packages: await reportsSvc.byPackage(fromIso, toIso) });
+  } catch (err) { next(err); }
+});
+
+router.get('/reports/by-period', reportAccess, async (req, res, next) => {
+  try {
+    const { fromIso, toIso } = reportRange(req);
+    res.json({ from: fromIso, to: toIso, periods: await reportsSvc.byPeriod(fromIso, toIso) });
+  } catch (err) { next(err); }
+});
+
+// Point-in-time operations snapshot (not period-bound).
+router.get('/reports/current-ops', reportAccess, async (req, res, next) => {
+  try {
+    res.json({ ops: await reportsSvc.currentOps() });
   } catch (err) { next(err); }
 });
 
@@ -685,7 +699,7 @@ router.post('/reports/send-statement', requireAdmin, async (req, res, next) => {
     const result = await emailSvc.sendStatement(recipients, pdf, statement);
     if (result.skipped) return res.status(503).json({ error: result.reason, recipients });
     if (result.error) return res.status(502).json({ error: result.error, recipients });
-    res.json({ ok: true, recipients, label: statement.label, total_due_fmt: statement.totals.total_due_fmt });
+    res.json({ ok: true, recipients, label: statement.label, net_fmt: statement.totals.net_fmt });
   } catch (err) { next(err); }
 });
 
