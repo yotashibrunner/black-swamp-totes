@@ -1,6 +1,6 @@
 {
   "name": "Black Swamp Totes Operator",
-  "short_name": "GC Operator",
+  "short_name": "BST Operator",
   "description": "Manage Black Swamp Totes bookings, schedule, and inventory from your phone.",
   "id": "/operator/",
   "start_url": "/operator/",
