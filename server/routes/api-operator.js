@@ -217,6 +217,16 @@ router.get('/dashboard', async (req, res, next) => {
   }
 });
 
+// GET /api/operator/inventory/demand — bins committed per day (next 30 days) +
+// the active bookings driving them, for the bin demand tracker.
+router.get('/inventory/demand', async (req, res, next) => {
+  try {
+    res.json(await bookingSvc.getBinDemand());
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/operator/schedule?date=YYYY-MM-DD — chronological list for a day.
 // Defaults to today when no date is supplied.
 router.get('/schedule', async (req, res, next) => {

@@ -325,6 +325,7 @@
       renderLogin();
     });
     root.querySelector('[data-nav="inventory"]').addEventListener('click', () => renderInventory());
+    root.querySelector('[data-nav="demand"]').addEventListener('click', () => renderDemand());
     root.querySelector('[data-nav="schedule"]').addEventListener('click', () => renderSchedule());
     root.querySelector('[data-nav="calendar"]').addEventListener('click', () => renderCalendar());
     root.querySelector('[data-nav="accounts"]').addEventListener('click', () => renderAccounts());
@@ -2321,6 +2322,105 @@
       });
     });
     load();
+  }
+
+  // ── Inventory / bin demand tracker (all operators) ───────────────────────
+  // 30-day grid of bins committed per day, colored by % of TOTAL_INVENTORY.
+  // Tapping a day lists the bookings active that day.
+  async function renderDemand() {
+    mount('tpl-demand');
+    root.querySelector('[data-back]').addEventListener('click', () => renderDashboard());
+    const loadingEl = root.querySelector('[data-loading]');
+    const errEl = root.querySelector('[data-error]');
+    const demandEl = root.querySelector('[data-demand]');
+
+    let data;
+    try {
+      data = await api.apiFetch('/api/operator/inventory/demand');
+    } catch (err) {
+      if (handleAuth(err)) return;
+      loadingEl.hidden = true;
+      errEl.textContent = err.message || 'Could not load inventory.';
+      errEl.hidden = false;
+      return;
+    }
+    loadingEl.hidden = true;
+
+    const total = data.total_inventory || 0;
+    const days = data.days || [];
+    const bookings = data.bookings || [];
+
+    // Date helpers — the API sends plain 'YYYY-MM-DD', so format in UTC to avoid
+    // off-by-one timezone shifts.
+    const fmtMD = (s) => { const p = s.split('-'); return (+p[1]) + '/' + (+p[2]); };
+    const fmtLong = (s) => {
+      const p = s.split('-').map(Number);
+      return new Date(Date.UTC(p[0], p[1] - 1, p[2]))
+        .toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' });
+    };
+    const colorClass = (bins) => {
+      if (total <= 0) return 'dc-green';
+      const pct = (bins / total) * 100;
+      if (pct <= 60) return 'dc-green';
+      if (pct <= 80) return 'dc-yellow';
+      if (pct <= 90) return 'dc-orange';
+      return 'dc-red';
+    };
+
+    // Summary card.
+    const todayBins = days.length ? days[0].bins_committed : 0;
+    root.querySelector('[data-out-today]').textContent = `${todayBins} / ${total}`;
+    root.querySelector('[data-avail-today]').textContent = String(Math.max(0, total - todayBins));
+    const upcoming = days.slice(1);
+    let busiest = null;
+    for (const d of (upcoming.length ? upcoming : days)) {
+      if (!busiest || d.bins_committed > busiest.bins_committed) busiest = d;
+    }
+    root.querySelector('[data-busiest]').textContent = (busiest && busiest.bins_committed > 0)
+      ? `${fmtLong(busiest.date)} — ${busiest.bins_committed} bins` : 'None';
+    const nextOpen = days.find((d) => d.bins_committed === 0);
+    root.querySelector('[data-next-open]').textContent = nextOpen ? fmtLong(nextOpen.date) : 'None in range';
+
+    // 30-day grid + day detail.
+    const grid = root.querySelector('[data-grid]');
+    const dayCard = root.querySelector('[data-day-card]');
+    const dayTitle = root.querySelector('[data-day-title]');
+    const dayList = root.querySelector('[data-day-list]');
+    const dayEmpty = root.querySelector('[data-day-empty]');
+    grid.replaceChildren();
+
+    function showDay(d, cell) {
+      grid.querySelectorAll('.demand-cell').forEach((c) => c.removeAttribute('aria-selected'));
+      cell.setAttribute('aria-selected', 'true');
+      dayTitle.textContent = `${fmtLong(d.date)} · ${d.bins_committed} / ${total} bins`;
+      dayList.replaceChildren();
+      const active = bookings.filter((b) => b.start_date <= d.date && b.end_date >= d.date);
+      dayEmpty.hidden = active.length > 0;
+      for (const b of active) {
+        const li = document.createElement('li');
+        li.className = 'rep-row';
+        const main = document.createElement('span'); main.className = 'rep-main';
+        main.textContent = `${b.customer_name || '—'} · ${b.package_name || ''} · ${b.ref_code}`;
+        const amt = document.createElement('span'); amt.className = 'rep-amt';
+        amt.textContent = `${b.bin_count} bins`;
+        li.append(main, amt);
+        dayList.appendChild(li);
+      }
+      dayCard.hidden = false;
+    }
+
+    days.forEach((d) => {
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'demand-cell ' + colorClass(d.bins_committed);
+      cell.innerHTML = '<span class="dc-date"></span><span class="dc-bins"></span>';
+      cell.querySelector('.dc-date').textContent = fmtMD(d.date);
+      cell.querySelector('.dc-bins').textContent = d.bins_committed;
+      cell.addEventListener('click', () => showDay(d, cell));
+      grid.appendChild(cell);
+    });
+
+    demandEl.hidden = false;
   }
 
   // ── Audit log (admin + owner) ────────────────────────────────────────────

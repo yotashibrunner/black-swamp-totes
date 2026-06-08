@@ -105,6 +105,11 @@ const config = {
   // Direct Google review link for the post-return review request (cron). When
   // unset, the review request is skipped.
   googleReviewLink: process.env.GOOGLE_REVIEW_LINK || '',
+
+  // Total rentable bins across the whole operation. New bookings are rejected
+  // when committed bins on any overlapping day would exceed this. Default keeps
+  // a 10-bin buffer below the ~100 physical bins for turnaround/cleaning.
+  totalInventory: parseInt(process.env.TOTAL_INVENTORY, 10) || 90,
 };
 
 config.isProduction = config.env === 'production';

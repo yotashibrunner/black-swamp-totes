@@ -77,6 +77,14 @@
           </span>
           <span class="nav-chevron" aria-hidden="true">›</span>
         </button>
+        <button type="button" class="nav-item" data-nav="demand">
+          <span class="nav-icon" aria-hidden="true">📊</span>
+          <span class="nav-text">
+            <span class="nav-label">Inventory</span>
+            <span class="nav-sub muted">Bin demand · next 30 days</span>
+          </span>
+          <span class="nav-chevron" aria-hidden="true">›</span>
+        </button>
         <button type="button" class="nav-item" data-nav="calendar" data-admin hidden>
           <span class="nav-icon" aria-hidden="true">🗓️</span>
           <span class="nav-text">
@@ -88,7 +96,7 @@
         <button type="button" class="nav-item" data-nav="inventory" data-admin hidden>
           <span class="nav-icon" aria-hidden="true">🚚</span>
           <span class="nav-text">
-            <span class="nav-label">Inventory</span>
+            <span class="nav-label">Packages</span>
             <span class="nav-sub muted">Packages, status &amp; pricing</span>
           </span>
           <span class="nav-chevron" aria-hidden="true">›</span>
@@ -546,7 +554,7 @@
   <template id="tpl-inventory">
     <header class="topbar">
       <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
-      <span class="topbar-title">Inventory</span>
+      <span class="topbar-title">Packages</span>
       <span class="topbar-spacer"></span>
     </header>
 
@@ -713,6 +721,49 @@
       </span>
       <button type="button" class="btn btn-ghost blackout-del" data-del>Remove</button>
     </li>
+  </template>
+
+  <!-- ── Inventory / bin demand tracker ─────────────────────────────── -->
+  <template id="tpl-demand">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
+      <span class="topbar-title">Inventory</span>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="screen content">
+      <p class="empty" data-loading>Loading…</p>
+      <p class="error" data-error hidden></p>
+
+      <div data-demand hidden>
+        <section class="card">
+          <h2>At a glance</h2>
+          <ul class="rep-list">
+            <li class="rep-row"><span class="rep-main">Bins out today</span><span class="rep-amt" data-out-today></span></li>
+            <li class="rep-row"><span class="rep-main">Available today</span><span class="rep-amt" data-avail-today></span></li>
+            <li class="rep-row"><span class="rep-main">Busiest upcoming day</span><span class="rep-amt" data-busiest></span></li>
+            <li class="rep-row"><span class="rep-main">Next fully open day</span><span class="rep-amt" data-next-open></span></li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>Next 30 days</h2>
+          <div class="demand-legend">
+            <span><i class="dc-green"></i> 0–60% open</span>
+            <span><i class="dc-yellow"></i> 61–80% busy</span>
+            <span><i class="dc-orange"></i> 81–90% nearly full</span>
+            <span><i class="dc-red"></i> 91–100% at capacity</span>
+          </div>
+          <div class="demand-grid" data-grid></div>
+        </section>
+
+        <section class="card" data-day-card hidden>
+          <h2 data-day-title></h2>
+          <ul class="booking-list" data-day-list></ul>
+          <p class="empty" data-day-empty hidden>No bins committed this day.</p>
+        </section>
+      </div>
+    </main>
   </template>
 
   <!-- ── Accounts (admin) ───────────────────────────────────────────── -->

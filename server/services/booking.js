@@ -6,6 +6,7 @@
 // so two customers can't grab the same window.
 
 const { pool } = require('../db');
+const config = require('../config');
 const trailerSvc = require('./trailer');
 const couponsSvc = require('./coupons');
 const { computeQuote, DELIVERY_FEE_CENTS } = require('./pricing');
@@ -13,6 +14,10 @@ const { OCCUPYING_STATUSES } = require('./availability');
 const { buildAgreement, toPlainText, CONTRACT_VERSION } = require('./contract');
 const { parseDateOnly, addDays, todayUTC, toDateOnly } = require('../utils/date');
 const { refCode } = require('../utils/ref-code');
+
+// Statuses that commit physical bins (count toward the global inventory cap and
+// the demand tracker). A booking holds bins from creation through pickup.
+const GLOBAL_BIN_STATUSES = ['pending', 'signed', 'paid', 'confirmed', 'out'];
 
 function badRequest(message, status = 400) {
   const err = new Error(message);
@@ -194,6 +199,27 @@ async function createBooking(input) {
     );
     if (overlap.rows[0].n >= cap) {
       throw badRequest('Those dates are no longer available. Please pick another range.', 409);
+    }
+
+    // Global bin-inventory cap. Total bins committed across every booking that
+    // overlaps this window must leave room for the requested bins, otherwise
+    // we'd overbook the physical fleet. TOTAL_INVENTORY keeps a turnaround
+    // buffer below the real bin count.
+    if (isBins && binCount > 0) {
+      const committed = await client.query(
+        `SELECT COALESCE(SUM(bin_count), 0)::int AS bins_committed
+           FROM bookings
+          WHERE status = ANY($1)
+            AND start_at::date <= $3::date
+            AND end_at::date >= $2::date`,
+        [GLOBAL_BIN_STATUSES, startIso, endIso]
+      );
+      if (committed.rows[0].bins_committed + binCount > config.totalInventory) {
+        throw badRequest(
+          "Those dates aren't available — we're fully booked. Please choose different dates or contact us at (419) 972-1669.",
+          409
+        );
+      }
     }
 
     const customerId = await findOrCreateCustomer(client, input.customer || {});
@@ -450,6 +476,42 @@ async function getDashboard() {
   };
 }
 
+// Bin demand tracker: bins committed per day across the next 30 days plus the
+// active bookings driving them, for the operator inventory screen.
+async function getBinDemand() {
+  const daysRes = await pool.query(
+    `SELECT to_char(d.day, 'YYYY-MM-DD') AS date,
+            COALESCE(SUM(b.bin_count), 0)::int AS bins_committed
+       FROM generate_series(CURRENT_DATE, CURRENT_DATE + 30, '1 day') d(day)
+       LEFT JOIN bookings b
+         ON b.start_at::date <= d.day
+        AND b.end_at::date >= d.day
+        AND b.status = ANY($1)
+      GROUP BY d.day
+      ORDER BY d.day`,
+    [GLOBAL_BIN_STATUSES]
+  );
+  const bookingsRes = await pool.query(
+    `SELECT b.ref_code, b.bin_count,
+            to_char(b.start_at, 'YYYY-MM-DD') AS start_date,
+            to_char(b.end_at, 'YYYY-MM-DD') AS end_date,
+            c.name AS customer_name, t.name AS package_name
+       FROM bookings b
+       JOIN customers c ON c.id = b.customer_id
+       JOIN trailers t ON t.id = b.trailer_id
+      WHERE b.status = ANY($1)
+        AND b.start_at::date <= CURRENT_DATE + 30
+        AND b.end_at::date >= CURRENT_DATE
+      ORDER BY b.start_at, t.name`,
+    [GLOBAL_BIN_STATUSES]
+  );
+  return {
+    total_inventory: config.totalInventory,
+    days: daysRes.rows,
+    bookings: bookingsRes.rows,
+  };
+}
+
 // All bookings touching a given 'YYYY-MM-DD' date, chronological. A booking is
 // included if its [start, end) window overlaps the day; each row is tagged with
 // whether the pickup and/or return falls on that day so the PWA can label it.
@@ -593,5 +655,5 @@ async function updateBooking(id, patch, adminUserId) {
 module.exports = {
   createBooking, getById, getByRef, signBooking, markPaidBySession,
   attachCheckoutSession, buildAgreementFor,
-  getDashboard, getSchedule, updateBooking, getBookingsInRange,
+  getDashboard, getSchedule, updateBooking, getBookingsInRange, getBinDemand,
 };
