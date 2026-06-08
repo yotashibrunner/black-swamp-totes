@@ -140,6 +140,8 @@
   .eco ul{list-style:none;margin:26px 0;display:flex;flex-direction:column;gap:14px;}
   .eco li{display:flex;gap:12px;align-items:flex-start;font-weight:600;}
   .eco li .ck{color:var(--lily);font-weight:900;flex-shrink:0;}
+  .eco .eco-stat{color:var(--lily);font-weight:800;}
+  .eco-sources{font-size:12px;color:rgba(255,255,255,.45)!important;margin-top:24px;line-height:1.5;}
   .eco-img{position:relative;border-radius:24px;overflow:hidden;transform:rotate(2deg);box-shadow:0 30px 70px -30px rgba(0,0,0,.7);background:linear-gradient(155deg,#1aa052,#0e5429);min-height:460px;display:flex;align-items:center;justify-content:center;}
   .eco-img svg{width:58%;max-width:300px;color:#fff;filter:drop-shadow(0 16px 30px rgba(0,0,0,.35));}
   .eco-img::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 28% 18%,rgba(255,255,255,.18),transparent 55%);pointer-events:none;}
@@ -362,15 +364,14 @@
   <section class="section eco"><div class="container">
     <div class="eco-grid">
       <div data-aos="fade-right">
-        <div class="eyebrow">Why bins beat boxes</div>
-        <h2 style="margin-top:12px;">Stronger than cardboard.<br/>Better for the planet.</h2>
-        <p>The average move uses 60 cardboard boxes. Most end up in the landfill. Our reusable bins make that same trip hundreds of times — sanitized between every rental.</p>
-        <ul>
-          <li><span class="ck">✓</span> No assembly or tape required</li>
-          <li><span class="ck">✓</span> Weatherproof — survives rain and spills</li>
-          <li><span class="ck">✓</span> Stackable — loads twice as efficiently</li>
-        </ul>
-        <a class="btn btn-outline-white" href="#packages">See our packages</a>
+        <div class="eyebrow">Reality check</div>
+        <h2 style="margin-top:12px;">That &ldquo;recycle your boxes&rdquo; plan?<br/>It&rsquo;s not working.</h2>
+        <p>The US cardboard recycling rate sounds impressive at <strong class="eco-stat">70%</strong>. But moving boxes are the exception — not the rule.</p>
+        <p>Tape makes them non-recyclable. Moisture and damage during the move get them rejected at facilities. And most people mid-move just throw them in the dumpster anyway.</p>
+        <p>The honest reality: <strong class="eco-stat">roughly half</strong> of all moving boxes end up in a landfill within days of a move.</p>
+        <p>Our bins are different. Each one gets sanitized and reused <strong class="eco-stat">hundreds of times</strong>. No tape. No contamination. No landfill. Just a bin that does its job and comes back for the next move.</p>
+        <p class="eco-sources">Sources: American Forest &amp; Paper Association 2024 · Contamination data via industry recycling standards</p>
+        <a class="btn btn-outline-white" href="#packages" style="margin-top:8px;">See our packages</a>
       </div>
       <div class="eco-img" data-aos="fade-left" role="img" aria-label="Stack of reusable moving bins">
         <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
