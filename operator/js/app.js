@@ -217,7 +217,7 @@
   // Fill a cloned tpl-blackout-row. onDelete(bo, rowEl) handles removal.
   function fillBlackoutRow(node, bo, onDelete) {
     const trailerEl = node.querySelector('[data-trailer]');
-    trailerEl.textContent = bo.fleet_wide ? 'All trailers' : (bo.trailer_name || 'Trailer');
+    trailerEl.textContent = bo.fleet_wide ? 'All totes' : (bo.trailer_name || 'Tote');
     const when = bo.start_date === bo.end_date
       ? fmtDay(bo.start_date)
       : `${fmtDay(bo.start_date)} – ${fmtDay(bo.end_date)}`;
@@ -1515,7 +1515,7 @@
 
   // ── Blackout removal (shared by calendar + blackouts screens) ───────────
   async function confirmDeleteBlackout(bo, onDone, btn) {
-    const label = bo.fleet_wide ? 'all trailers' : (bo.trailer_name || 'this trailer');
+    const label = bo.fleet_wide ? 'all totes' : (bo.trailer_name || 'this tote');
     if (!window.confirm(`Remove the blackout for ${label}?`)) return;
     if (btn) { btn.disabled = true; btn.textContent = 'Removing…'; }
     try {
@@ -1738,7 +1738,7 @@
   }
 
   // ── Blackouts management ─────────────────────────────────────────────────
-  // Add form (trailer / from / to / reason) + a list of current blackouts with
+  // Add form (tote / from / to / reason) + a list of current blackouts with
   // remove buttons. `prefill` can seed the date inputs; `onBack` overrides the
   // back target (defaults to the calendar).
   async function renderBlackouts(prefill, onBack) {
@@ -1762,7 +1762,7 @@
     if (prefill && prefill.start) startEl.value = prefill.start;
     if (prefill && prefill.end) endEl.value = prefill.end;
 
-    // Populate the trailer dropdown ("All trailers" is already in the markup).
+    // Populate the tote dropdown ("All totes" is already in the markup).
     try {
       const data = await api.apiFetch('/api/operator/trailers');
       for (const t of data.trailers || []) {
@@ -1773,7 +1773,7 @@
       }
     } catch (err) {
       if (handleAuth(err)) return;
-      // Non-fatal — the operator can still block the whole fleet.
+      // Non-fatal — the operator can still block all totes.
     }
 
     async function loadList() {
