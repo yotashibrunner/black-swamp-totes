@@ -109,7 +109,6 @@
   .impact-emoji{font-size:46px;line-height:1;margin-bottom:14px;}
   .impact-num{font-size:clamp(40px,6vw,62px);font-weight:900;color:var(--lily);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
   .impact-label{margin-top:12px;color:rgba(255,255,255,.72);font-size:15px;font-weight:600;}
-  .impact-foot{margin-top:34px;color:rgba(255,255,255,.55);font-size:14px;}
 
   /* PACKAGES */
   .pkg-bg{background:var(--gray-bg);}
@@ -357,7 +356,6 @@
         <div class="impact-label">trees saved</div>
       </div>
     </div>
-    <p class="impact-foot center" data-impact-foot>Updated in real time</p>
   </div></section>
 
   <!-- 5. ECO SPLIT -->
@@ -537,11 +535,6 @@
 
       fetch('/api/impact').then(function (r) { return r.json(); }).then(function (d) {
         data = d;
-        var foot = section.querySelector('[data-impact-foot]');
-        if (foot) {
-          var n = d.rentals_completed || 0;
-          foot.textContent = 'Based on ' + n.toLocaleString() + ' completed rental' + (n === 1 ? '' : 's') + ' · Updated in real time';
-        }
         maybe();
       }).catch(function () {});
 
