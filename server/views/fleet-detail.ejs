@@ -51,9 +51,6 @@
         <% } %>
 
         <% if (trailer.description) { %><p class="dim"><%= trailer.description %></p><% } %>
-        <% if (trailer.slug === 'student-special') { %>
-        <p class="dim" style="color:var(--lily);font-weight:600;">This package requires a valid .edu student email address at checkout. Eligible schools include BGSU (bgsu.edu) and UT Toledo (rockets.utoledo.edu).</p>
-        <% } %>
 
         <% if (Array.isArray(trailer.specs) && trailer.specs.length) { %>
         <ul class="specs">

@@ -55,16 +55,6 @@ const PACKAGES = [
     specs: ['55 heavy-duty stackable bins', '2 hand dollies included', 'Free delivery to your door', 'Free pickup when done', 'Bins sanitized before every rental'],
   },
   {
-    slug: 'student-special',
-    name: 'Student Special',
-    size_label: '15 bins + 1 dolly · 2 weeks',
-    description: 'Built for BGSU and UT Toledo students. 15 bins and a dolly for two full weeks — perfect for move-in and move-out.',
-    weekly_rate: 4950, // 2-week rental = $99 (weekly_rate x 2 weeks)
-    bin_count: 15, dolly_count: 1, is_custom: false,
-    quantity_total: 4, display_order: 5,
-    specs: ['15 heavy-duty stackable bins', '1 hand dolly included', '2-week rental included', 'Free delivery to your door', 'Free pickup when done', 'Perfect for BGSU and UT Toledo students'],
-  },
-  {
     slug: 'custom',
     name: 'Custom Order',
     size_label: 'You choose the quantity',
