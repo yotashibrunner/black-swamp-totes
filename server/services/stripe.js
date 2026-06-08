@@ -47,18 +47,24 @@ async function createCheckoutSession(booking, { successUrl, cancelUrl, depositCe
   // it to zero/negative — Stripe rejects a $0 line item.
   const rentalAmount = booking.total_cents - deliveryFee; // base + tax − discount
 
+  // .edu student discount: show the pre-discount rental price and itemize the
+  // 20% off via a one-time Stripe coupon (Checkout has no negative line items),
+  // so the receipt shows the original price and the discount clearly.
+  const studentDiscount = booking.student_discount_applied ? Math.max(0, booking.discount_cents || 0) : 0;
+  const rentalLineAmount = rentalAmount + studentDiscount;
+
   const lineItems = [];
-  if (rentalAmount > 0) {
+  if (rentalLineAmount > 0) {
     lineItems.push({
       price_data: {
         currency: 'usd',
         product_data: {
           name: `${booking.trailer_name} — ${booking.ref_code}`,
-          description: booking.discount_applied_cents > 0
+          description: (booking.discount_applied_cents > 0 || studentDiscount > 0)
             ? 'Black Swamp Totes — rental balance (discount applied)'
             : 'Black Swamp Totes — rental balance',
         },
-        unit_amount: rentalAmount,
+        unit_amount: rentalLineAmount,
       },
       quantity: 1,
     });
@@ -108,6 +114,17 @@ async function createCheckoutSession(booking, { successUrl, cancelUrl, depositCe
   if (booking.customer_email) paymentIntentData.receipt_email = booking.customer_email;
   params.customer_creation = 'always';
   params.payment_intent_data = paymentIntentData;
+
+  // Itemize the student discount as a one-time coupon on the session.
+  if (studentDiscount > 0) {
+    const coupon = await stripe.coupons.create({
+      amount_off: studentDiscount,
+      currency: 'usd',
+      duration: 'once',
+      name: 'Student Discount (20%)',
+    });
+    params.discounts = [{ coupon: coupon.id }];
+  }
 
   return stripe.checkout.sessions.create(params);
 }

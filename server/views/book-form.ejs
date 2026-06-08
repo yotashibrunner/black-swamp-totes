@@ -61,6 +61,7 @@
             <div class="qrow" id="sumDeliveryRow" hidden><span>Delivery</span><span id="sumDelivery"><%= fmt(deliveryFeeCents) %></span></div>
           <% } %>
           <div class="qrow" id="sumDiscountRow" hidden><span>Discount <span id="sumCouponCode" class="dim"></span></span><span id="sumDiscount" style="color:var(--green)"></span></div>
+          <div class="qrow" id="sumStudentRow" hidden><span>🎓 Student discount (20%)</span><span id="sumStudent" style="color:var(--green)"></span></div>
           <div class="qtotal">
             <span class="lbl">Total</span>
             <span class="val" id="sumTotal"><%= fmt(quote.total_cents) %></span>
@@ -90,6 +91,12 @@
           <div class="field-row two" style="margin-top:12px;">
             <div><label class="fl" for="phone">Phone <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label><input type="text" id="phone" inputmode="tel" autocomplete="tel" required aria-required="true" /></div>
             <div><label class="fl" for="email">Email <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label><input type="email" id="email" inputmode="email" autocomplete="email" required aria-required="true" /></div>
+          </div>
+          <div id="studentBox" role="status" aria-live="polite" hidden style="margin-top:10px;background:rgba(34,197,94,.1);border:1px solid var(--green);border-radius:10px;padding:12px 14px;font-size:13px;">
+            <div style="color:var(--green);font-weight:700;margin-bottom:8px;">🎓 Student discount applied — 20% off your rental</div>
+            <div style="display:flex;justify-content:space-between;"><span>Original price</span><span id="sbOriginal"></span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Student discount</span><span id="sbDiscount" style="color:var(--green)"></span></div>
+            <div style="display:flex;justify-content:space-between;font-weight:700;margin-top:4px;"><span>Your total</span><span id="sbTotal"></span></div>
           </div>
 
           <div class="step"><label class="fl" for="startTime" id="timeLabel" style="margin:0;"><%= isBins ? 'Preferred Delivery Time' : (isDumpster ? 'Preferred Drop-off Time' : 'Preferred Pickup Time') %></label></div>
@@ -193,11 +200,38 @@
         return coupon.discount_applied_cents || 0;
       }
 
+      // .edu student discount: 20% off the package price. Bins only, and it does
+      // NOT stack with a promo code — whichever discount is greater wins.
+      function isEduEmail() {
+        var em = (el('email') && el('email').value || '').trim();
+        return IS_BINS && /\.edu$/i.test(em);
+      }
+      function studentDiscountCents() {
+        return isEduEmail() ? Math.round(baseCents() * 0.20) : 0;
+      }
+      function updateStudentBox() {
+        var box = el('studentBox');
+        if (!box) return;
+        if (isEduEmail()) {
+          var base = baseCents();
+          var disc = Math.round(base * 0.20);
+          el('sbOriginal').textContent = money(base);
+          el('sbDiscount').textContent = '-' + money(disc);
+          el('sbTotal').textContent = money(base - disc);
+          box.hidden = false;
+        } else {
+          box.hidden = true;
+        }
+      }
+
       function refresh() {
         var base = baseCents();
         var tax = Math.round(base * TAX_RATE);
         var delivery = deliveryFor();
-        var disc = discountFor(delivery, base);
+        var couponDisc = discountFor(delivery, base);
+        var studentDisc = studentDiscountCents();
+        var useStudent = studentDisc > couponDisc && studentDisc > 0;
+        var disc = useStudent ? studentDisc : couponDisc;
         var total = base + tax + delivery - disc;
         if (total < 0) total = 0;
         if (el('sumSubtotal')) el('sumSubtotal').textContent = money(base);
@@ -206,8 +240,11 @@
         var feeRow = el('sumDeliveryRow');
         if (feeRow) feeRow.hidden = delivery <= 0;
         var discRow = el('sumDiscountRow');
-        if (discRow) { discRow.hidden = disc <= 0; if (disc > 0) el('sumDiscount').textContent = '−' + money(disc); }
+        if (discRow) { var showCoupon = !useStudent && couponDisc > 0; discRow.hidden = !showCoupon; if (showCoupon) el('sumDiscount').textContent = '−' + money(couponDisc); }
+        var stuRow = el('sumStudentRow');
+        if (stuRow) { stuRow.hidden = !useStudent; if (useStudent) el('sumStudent').textContent = '−' + money(studentDisc); }
         el('sumTotal').textContent = money(total);
+        updateStudentBox();
         var label = el('timeLabel');
         if (label && !IS_BINS) {
           label.textContent = IS_DUMPSTER ? 'Preferred Drop-off Time' : (delivery > 0 ? 'Preferred Delivery Time' : 'Preferred Pickup Time');
@@ -216,6 +253,7 @@
         if (addrRow) addrRow.hidden = delivery <= 0;
       }
 
+      if (el('email')) el('email').addEventListener('input', refresh);
       if (el('binQty')) el('binQty').addEventListener('input', refresh);
       Array.prototype.forEach.call(document.querySelectorAll('input[name="fulfillment"]'), function (r) {
         r.addEventListener('change', refresh);

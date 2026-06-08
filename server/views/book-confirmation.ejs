@@ -56,8 +56,12 @@
           <div class="qrow"><span><%= timeLabel %></span><span><%= sd.toLocaleTimeString('en-US', { timeZone:'UTC', hour:'numeric', minute:'2-digit' }) %></span></div>
           <% } %>
           <div class="qrow"><span><%= booking.trailer_type === 'dumpster' ? 'Pickup' : 'Return' %></span><span><%= new Date(booking.end_at).toLocaleDateString('en-US', { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' }) %></span></div>
+          <% if (booking.student_discount_applied && booking.discount_cents > 0) { %>
+          <div class="qrow"><span>Package price</span><span><%= fmt(booking.base_amount_cents) %></span></div>
+          <div class="qrow"><span>🎓 Student discount (20%)</span><span style="color:var(--green)">−<%= fmt(booking.discount_cents) %></span></div>
+          <% } %>
           <div class="qtotal">
-            <span class="lbl"><%= paid ? 'Paid' : 'Total' %></span>
+            <span class="lbl"><%= paid ? 'Paid' : 'Total charged' %></span>
             <span class="val"><%= fmt(booking.total_cents) %></span>
           </div>
         </div>

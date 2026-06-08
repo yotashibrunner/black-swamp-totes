@@ -49,7 +49,11 @@ async function sendBookingConfirmation(booking, pdfBuffer, baseUrl) {
     isDelivery && booking.delivery_address ? `<tr><td ${td}>Delivery address</td><td>${booking.delivery_address}</td></tr>` : '',
     booking.pickup_address ? `<tr><td ${td}>Pickup address</td><td>${booking.pickup_address}</td></tr>` : '',
     timeStr ? `<tr><td ${td}>${timeLabel}</td><td><strong>${timeStr}</strong></td></tr>` : '',
-    `<tr><td ${td}>Total paid</td><td>${formatCents(booking.total_cents)}</td></tr>`,
+    booking.student_discount_applied && booking.discount_cents > 0
+      ? `<tr><td ${td}>Package price</td><td>${formatCents(booking.base_amount_cents)}</td></tr>`
+        + `<tr><td ${td}>🎓 Student discount (20%)</td><td style="color:#166534">−${formatCents(booking.discount_cents)}</td></tr>`
+      : '',
+    `<tr><td ${td}>Total charged</td><td><strong>${formatCents(booking.total_cents)}</strong></td></tr>`,
   ].filter(Boolean).join('');
 
   const logistics = isDelivery

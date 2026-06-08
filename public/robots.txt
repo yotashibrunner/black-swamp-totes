@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /operator
+Disallow: /api/
+
+Sitemap: https://blackswamptotes.com/sitemap.xml

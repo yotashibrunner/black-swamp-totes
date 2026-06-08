@@ -159,7 +159,22 @@ async function createBooking(input) {
     }));
   }
 
-  const totalCents = Math.max(0, quote.total_cents + deliveryFee - discountCents);
+  // .edu student discount — 20% off the pre-tax package price. Does NOT stack
+  // with a promo code: whichever discount is greater wins (no double discount).
+  const customerEmail = ((input.customer && input.customer.email) || '').trim();
+  const studentEligible = isBins && /\.edu$/i.test(customerEmail);
+  const studentDiscountCents = studentEligible ? Math.round(quote.base_cents * 0.20) : 0;
+  let studentDiscountApplied = false;
+  if (studentDiscountCents > discountCents) {
+    // Student discount beats the coupon — apply it and drop the coupon.
+    studentDiscountApplied = true;
+    couponId = null;
+    discountCents = 0;
+  }
+  const studentDiscountFinal = studentDiscountApplied ? studentDiscountCents : 0;
+  const appliedDiscount = studentDiscountApplied ? studentDiscountFinal : discountCents;
+
+  const totalCents = Math.max(0, quote.total_cents + deliveryFee - appliedDiscount);
 
   const client = await pool.connect();
   try {
@@ -224,13 +239,15 @@ async function createBooking(input) {
              (ref_code, trailer_id, customer_id, start_at, end_at, period_type, quantity,
               tire_count, base_amount_cents, extra_charges_cents, tax_cents, total_cents,
               customer_notes, status, fulfillment, delivery_address, delivery_fee_cents,
-              coupon_id, discount_applied_cents, bin_count, dolly_count, pickup_address)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',$14,$15,$16,$17,$18,$19,$20,$21)
+              coupon_id, discount_applied_cents, bin_count, dolly_count, pickup_address,
+              student_discount_applied, discount_cents)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
            RETURNING id, ref_code`,
           [ref, trailer.id, customerId, startAt.toISOString(), end.toISOString(), periodType, quantity,
             tireCount, baseAmount, extraCharges, quote.tax_cents, totalCents,
             (input.notes || '').trim() || null, fulfillment, deliveryAddress, deliveryFee,
-            couponId, discountCents, binCount, dollyCount, pickupAddress]
+            couponId, discountCents, binCount, dollyCount, pickupAddress,
+            studentDiscountApplied, studentDiscountFinal]
         );
         booking = res.rows[0];
       } catch (e) {

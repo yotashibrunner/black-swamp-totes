@@ -54,58 +54,8 @@ router.get('/my-booking', (req, res) => {
   res.render('my-booking', { ref: (req.query.ref || '').toString().trim() });
 });
 
-// GET /robots.txt — allow the public site, disallow app/api/webhooks.
-router.get('/robots.txt', (req, res) => {
-  const origin = siteOrigin(req);
-  res.type('text/plain').send(
-    [
-      'User-agent: *',
-      'Allow: /',
-      'Disallow: /operator',
-      'Disallow: /api/',
-      'Disallow: /webhooks/',
-      `Sitemap: ${origin}/sitemap.xml`,
-      '',
-    ].join('\n')
-  );
-});
-
-// GET /sitemap.xml — static pages + one URL per active trailer (dumpsters link
-// to /book/dumpster; trailers to /fleet/:slug).
-router.get('/sitemap.xml', async (req, res, next) => {
-  try {
-    const origin = siteOrigin(req);
-    const trailers = await trailerSvc.getActiveTrailers();
-    const url = (loc, changefreq, priority) =>
-      `  <url><loc>${origin}${loc}</loc><changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`;
-    const urls = [
-      url('/', 'weekly', '1.0'),
-      url('/fleet', 'weekly', '0.9'),
-    ];
-    let hasDumpster = false;
-    for (const t of trailers) {
-      if (t.type === 'dumpster') hasDumpster = true;
-      else urls.push(url(`/fleet/${t.slug}`, 'weekly', '0.8'));
-    }
-    if (hasDumpster) urls.push(url('/book/dumpster', 'weekly', '0.8'));
-    urls.push(url('/privacy', 'yearly', '0.3'));
-    urls.push(url('/terms', 'yearly', '0.3'));
-    urls.push(url('/accessibility', 'yearly', '0.3'));
-
-    // Blog / SEO posts.
-    for (const slug of Object.keys(require('./blog').POSTS)) {
-      urls.push(url(`/blog/${slug}`, 'monthly', '0.6'));
-    }
-
-    res.type('application/xml').send(
-      `<?xml version="1.0" encoding="UTF-8"?>\n`
-      + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
-      + `${urls.join('\n')}\n</urlset>\n`
-    );
-  } catch (err) {
-    next(err);
-  }
-});
+// NOTE: /robots.txt and /sitemap.xml are served as static files from public/
+// (see public/robots.txt and public/sitemap.xml) — no dynamic route here.
 
 router.get('/fleet/:slug', async (req, res, next) => {
   try {
