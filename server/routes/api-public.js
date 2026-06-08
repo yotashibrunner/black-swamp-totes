@@ -44,7 +44,7 @@ const bookingLimiter = rateLimit({
 
 // GET /api/impact — cumulative environmental impact across completed rentals.
 // Conversion factors are deliberately conservative, round numbers.
-const BOXES_PER_BIN = 3;
+const BOXES_PER_BIN = 1;
 const LBS_PER_BOX = 2.5;
 const BOXES_PER_TREE = 13;
 router.get('/impact', async (req, res, next) => {
