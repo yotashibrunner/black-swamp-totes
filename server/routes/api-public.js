@@ -10,6 +10,7 @@
 // the one public endpoint that accepts a body.
 
 const express = require('express');
+const { query } = require('../db');
 const { rateLimit } = require('../middleware/rate-limit');
 const trailerSvc = require('../services/trailer');
 const bookingSvc = require('../services/booking');
@@ -39,6 +40,30 @@ const bookingLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 15,
   message: 'Too many booking attempts, please wait a moment.',
+});
+
+// GET /api/impact — cumulative environmental impact across completed rentals.
+// Conversion factors are deliberately conservative, round numbers.
+const BOXES_PER_BIN = 3;
+const LBS_PER_BOX = 2.5;
+const BOXES_PER_TREE = 13;
+router.get('/impact', async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT COUNT(*)::int AS rentals_completed, COALESCE(SUM(bin_count), 0)::int AS total_bins
+         FROM bookings WHERE status = 'returned'`
+    );
+    const totalBins = rows[0].total_bins || 0;
+    const boxes = totalBins * BOXES_PER_BIN;
+    res.json({
+      boxes_saved: boxes,
+      lbs_saved: Math.round(boxes * LBS_PER_BOX),
+      trees_saved: Math.floor(boxes / BOXES_PER_TREE),
+      rentals_completed: rows[0].rentals_completed || 0,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Attach formatted dollar strings so the client doesn't reimplement money math.

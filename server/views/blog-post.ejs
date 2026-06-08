@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= post.title %></title>
+  <meta name="description" content="<%= post.metaDescription %>" />
+  <link rel="canonical" href="<%= canonical %>" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="<%= post.title %>" />
+  <meta property="og:description" content="<%= post.metaDescription %>" />
+  <meta property="og:url" content="<%= canonical %>" />
+  <link rel="icon" href="/images/logo.png?v=2" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/site.css" />
+  <%- typeof analyticsHead !== 'undefined' ? analyticsHead : '' %>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "MovingCompany",
+    "name": "Black Swamp Totes",
+    "url": "https://www.blackswamptotes.com",
+    "telephone": "+1-419-972-1669",
+    "priceRange": "$$",
+    "description": "Reusable moving bin rental and delivery in Toledo and Northwest Ohio. Free delivery and pickup.",
+    "address": { "@type": "PostalAddress", "addressLocality": "Toledo", "addressRegion": "OH", "addressCountry": "US" },
+    "areaServed": ["Toledo, OH", "Oregon, OH", "Northwood, OH", "Maumee, OH", "Perrysburg, OH", "Sylvania, OH", "Bowling Green, OH"]
+  }
+  </script>
+  <style>
+    .post { max-width: 760px; margin: 40px auto 64px; line-height: 1.75; }
+    .post h1 { font-family: 'Anton', sans-serif; text-transform: uppercase; font-size: clamp(30px, 6vw, 50px); line-height: 1.05; margin: 8px 0 6px; }
+    .post h2 { font-family: 'Anton', sans-serif; text-transform: uppercase; font-size: clamp(20px, 4vw, 28px); margin: 36px 0 12px; }
+    .post p, .post li { color: #cfd3c9; font-size: 17px; }
+    .post p { margin: 0 0 16px; }
+    .post a { color: var(--green); text-decoration: underline; }
+    .post .blog-list { margin: 0 0 18px; padding-left: 0; list-style: none; }
+    .post .blog-list li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .post .blog-list li:last-child { border-bottom: 0; }
+    .post-cta { margin: 40px auto 0; max-width: 760px; background: #0f240f; border: 1px solid rgba(34,197,94,.3); border-radius: 20px; padding: 32px; text-align: center; }
+    .post-cta h2 { font-family: 'Anton', sans-serif; text-transform: uppercase; font-size: 26px; margin: 0 0 8px; }
+    .post-cta p { color: #cfd3c9; margin: 0 0 18px; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-head">
+    <div class="site-head-inner">
+      <a class="back" href="/">‹ <span>Home</span></a>
+      <a href="/" aria-label="Black Swamp Totes home"><%- include("partials/cattail") %></a>
+      <a class="call" href="tel:+14199721669" aria-label="Call Black Swamp Totes">Call</a>
+    </div>
+  </header>
+
+  <main class="container" id="main">
+    <article class="post">
+      <div class="eyebrow">Black Swamp Totes Blog</div>
+      <h1><%= post.h1 %></h1>
+      <p class="dim" style="font-size:14px;color:#8aa18a;">Updated <%= post.updated %></p>
+      <%- post.content %>
+    </article>
+
+    <section class="post-cta">
+      <h2>Ready to ditch the cardboard?</h2>
+      <p>Free delivery and pickup, every time. Bins starting at $99/week.</p>
+      <a class="btn btn-primary" href="/#packages">See packages &amp; book →</a>
+    </section>
+  </main>
+
+  <%- include('partials/footer') %>
+</body>
+</html>

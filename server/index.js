@@ -77,6 +77,10 @@ app.use(
   })
 );
 
+// --- Blog / SEO content pages ---
+const blogRoutes = require('./routes/blog');
+app.use('/blog', blogRoutes);
+
 // --- Server-rendered booking pages (Phase 4) ---
 // Trailer detail + availability calendar at /fleet/:slug and the dedicated
 // roll-off flow at /book/dumpster. Unknown slugs fall through to the 404.

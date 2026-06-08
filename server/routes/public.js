@@ -92,6 +92,11 @@ router.get('/sitemap.xml', async (req, res, next) => {
     urls.push(url('/terms', 'yearly', '0.3'));
     urls.push(url('/accessibility', 'yearly', '0.3'));
 
+    // Blog / SEO posts.
+    for (const slug of Object.keys(require('./blog').POSTS)) {
+      urls.push(url(`/blog/${slug}`, 'monthly', '0.6'));
+    }
+
     res.type('application/xml').send(
       `<?xml version="1.0" encoding="UTF-8"?>\n`
       + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`

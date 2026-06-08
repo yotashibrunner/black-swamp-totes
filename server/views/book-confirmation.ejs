@@ -72,6 +72,12 @@
         </p>
         <% } %>
 
+        <% if (booking.bin_count) { var impBoxes = booking.bin_count * 3; var impLbs = Math.round(impBoxes * 2.5); %>
+        <p class="qnote" style="margin-top:14px;color:var(--green);font-weight:600;">
+          🌿 Your rental keeps <%= impBoxes %> cardboard boxes and <%= impLbs %> lbs of cardboard out of Toledo landfills.
+        </p>
+        <% } %>
+
         <% if (signed) { %>
           <a class="btn btn-ghost" href="/api/bookings/<%= booking.ref_code %>/contract.pdf" target="_blank" rel="noopener" style="margin-top:14px;">Download Signed Agreement (PDF)</a>
         <% } %>

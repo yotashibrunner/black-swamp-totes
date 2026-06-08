@@ -78,6 +78,39 @@
   @media(max-width:820px){.steps{grid-template-columns:repeat(2,1fr);gap:36px;}.steps::before{display:none;}}
   @media(max-width:480px){.steps{grid-template-columns:1fr;}}
 
+  /* HERO BENEFIT STRIP */
+  .hero-strip{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-top:26px;color:rgba(255,255,255,.88);font-weight:600;font-size:15px;}
+  .hero-strip span{white-space:nowrap;}
+
+  /* HOW IT WORKS — dark numbered cards */
+  .hiw-bg{background:var(--swamp);}
+  .hiw-bg .eyebrow{color:var(--lily);}
+  .hiw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:52px;}
+  @media(max-width:820px){.hiw-grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:480px){.hiw-grid{grid-template-columns:1fr;}}
+  .hiw-card{background:#0f240f;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px 24px;}
+  .hiw-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .hiw-num{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--lily);}
+  .hiw-ic{font-size:30px;line-height:1;}
+  .hiw-card h3{font-size:19px;font-weight:800;color:#fff;margin-bottom:8px;}
+  .hiw-card p{color:rgba(255,255,255,.7);font-size:15px;}
+
+  /* BIN SPECS CALLOUT */
+  .specs-cut{padding:46px 0;background:#fff;border-top:1px solid #eef2ee;}
+  .specs-line{font-size:15px;color:var(--muted);font-weight:600;max-width:1000px;margin:14px auto 0;line-height:2;}
+  .specs-line i{color:var(--lily);margin:0 10px;font-style:normal;font-weight:800;}
+
+  /* ENVIRONMENTAL IMPACT COUNTER */
+  .impact-bg{background:#0e220e;}
+  .impact-bg .eyebrow{color:var(--lily);}
+  .impact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:52px;}
+  @media(max-width:720px){.impact-grid{grid-template-columns:1fr;}}
+  .impact-card{background:#0a1a0a;border:1px solid rgba(34,197,94,.28);border-radius:22px;padding:42px 28px;text-align:center;}
+  .impact-emoji{font-size:46px;line-height:1;margin-bottom:14px;}
+  .impact-num{font-size:clamp(40px,6vw,62px);font-weight:900;color:var(--lily);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+  .impact-label{margin-top:12px;color:rgba(255,255,255,.72);font-size:15px;font-weight:600;}
+  .impact-foot{margin-top:34px;color:rgba(255,255,255,.55);font-size:14px;}
+
   /* PACKAGES */
   .pkg-bg{background:var(--gray-bg);}
   .pkgs{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:52px;}
@@ -199,10 +232,15 @@
     <div class="hero-in">
       <div class="eyebrow" data-aos="fade-up">Northwest Ohio's Moving Bin Company</div>
       <h1 data-aos="fade-up" data-aos-delay="80">Cardboard is<br/>canceled.</h1>
-      <p class="lead" data-aos="fade-up" data-aos-delay="160">Reusable moving bins delivered to your door — free delivery, free pickup, zero waste. Serving Toledo and Northwest Ohio.</p>
+      <p class="lead" data-aos="fade-up" data-aos-delay="160">Heavy-duty plastic moving bins delivered to your door in Toledo and Northwest Ohio. We drop off, you pack and move, we pick up — free delivery and pickup included every time. Starting at $99/week.</p>
       <div class="hero-btns" data-aos="fade-up" data-aos-delay="240">
         <a class="btn btn-primary" href="#packages">See packages →</a>
         <a class="btn btn-outline-white" href="#how">How it works</a>
+      </div>
+      <div class="hero-strip" data-aos="fade-up" data-aos-delay="320">
+        <span>✓ Free Delivery</span>
+        <span>✓ Free Pickup</span>
+        <span>✓ Zero Waste</span>
       </div>
     </div>
     <a class="scroll-ind" href="#how" aria-label="Scroll down">
@@ -211,18 +249,30 @@
   </header>
 
   <!-- HOW IT WORKS -->
-  <section class="section" id="how"><div class="container">
+  <section class="section hiw-bg" id="how"><div class="container">
     <div class="center">
       <div class="eyebrow" data-aos="fade-up">How it works</div>
-      <h2 class="h2" data-aos="fade-up" style="margin-top:10px;">Moving made simple</h2>
-      <p class="sub" data-aos="fade-up">Four steps. Zero cardboard.</p>
+      <h2 class="h2" data-aos="fade-up" style="margin-top:10px;color:#fff;">Moving made simple</h2>
+      <p class="sub" data-aos="fade-up" style="color:rgba(255,255,255,.62);">Four steps. Zero cardboard.</p>
     </div>
-    <div class="steps-wrap"><div class="steps">
-      <div class="step" data-aos="fade-up" data-aos-delay="0"><div class="ic">📦</div><h3>Book in minutes</h3><p>Pick your package, choose delivery and pickup dates, pay securely online.</p></div>
-      <div class="step" data-aos="fade-up" data-aos-delay="150"><div class="ic">🚚</div><h3>We deliver clean bins</h3><p>Stacked, sanitized bins arrive at your door. No assembly, no tape, no mess.</p></div>
-      <div class="step" data-aos="fade-up" data-aos-delay="300"><div class="ic">📋</div><h3>Pack and move</h3><p>Fill the bins, load your truck, unpack at the new place on your schedule.</p></div>
-      <div class="step" data-aos="fade-up" data-aos-delay="450"><div class="ic">♻️</div><h3>We pick up — zero waste</h3><p>We collect from your new address. No cardboard in the landfill.</p></div>
-    </div></div>
+    <div class="hiw-grid">
+      <div class="hiw-card" data-aos="fade-up" data-aos-delay="0">
+        <div class="hiw-top"><span class="hiw-num">Step 1</span><span class="hiw-ic">📱</span></div>
+        <h3>Book Online</h3><p>Choose your package and delivery date at blackswamptotes.com in minutes.</p>
+      </div>
+      <div class="hiw-card" data-aos="fade-up" data-aos-delay="100">
+        <div class="hiw-top"><span class="hiw-num">Step 2</span><span class="hiw-ic">📦</span></div>
+        <h3>We Deliver</h3><p>Bins arrive at your door, ready to pack.</p>
+      </div>
+      <div class="hiw-card" data-aos="fade-up" data-aos-delay="200">
+        <div class="hiw-top"><span class="hiw-num">Step 3</span><span class="hiw-ic">🚛</span></div>
+        <h3>Pack &amp; Move</h3><p>Fill your bins, load the truck, move in at your own pace.</p>
+      </div>
+      <div class="hiw-card" data-aos="fade-up" data-aos-delay="300">
+        <div class="hiw-top"><span class="hiw-num">Step 4</span><span class="hiw-ic">✓</span></div>
+        <h3>We Pick Up</h3><p>Text us when done. We collect from your new address. Free. Always.</p>
+      </div>
+    </div>
   </div></section>
 
   <!-- 4. PACKAGES -->
@@ -276,6 +326,38 @@
         <a class="btn btn-outline-dark" href="/fleet/custom">Book this package →</a>
       </div></div>
     </div>
+  </div></section>
+
+  <!-- BIN SPECS CALLOUT -->
+  <section class="specs-cut"><div class="container center">
+    <div class="eyebrow" data-aos="fade-up">About our bins</div>
+    <p class="specs-line" data-aos="fade-up">Heavy-duty commercial-grade plastic <i>·</i> 18.75 gallon capacity <i>·</i> 27"×17"×12" <i>·</i> Stacks 5 high <i>·</i> 100 lb load rating <i>·</i> Sanitized between every rental <i>·</i> Made in USA</p>
+  </div></section>
+
+  <!-- ENVIRONMENTAL IMPACT COUNTER -->
+  <section class="section impact-bg" id="impact"><div class="container">
+    <div class="center">
+      <div class="eyebrow" data-aos="fade-up">Our impact</div>
+      <h2 class="h2" data-aos="fade-up" style="margin-top:10px;color:#fff;">Cardboard we've kept out of landfills</h2>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-card" data-aos="fade-up" data-aos-delay="0">
+        <div class="impact-emoji">♻️</div>
+        <div class="impact-num" data-impact="lbs_saved">0</div>
+        <div class="impact-label">lbs cardboard diverted</div>
+      </div>
+      <div class="impact-card" data-aos="fade-up" data-aos-delay="120">
+        <div class="impact-emoji">📦</div>
+        <div class="impact-num" data-impact="boxes_saved">0</div>
+        <div class="impact-label">boxes kept from landfills</div>
+      </div>
+      <div class="impact-card" data-aos="fade-up" data-aos-delay="240">
+        <div class="impact-emoji">🌳</div>
+        <div class="impact-num" data-impact="trees_saved">0</div>
+        <div class="impact-label">trees saved</div>
+      </div>
+    </div>
+    <p class="impact-foot center" data-impact-foot>Updated in real time</p>
   </div></section>
 
   <!-- 5. ECO SPLIT -->
@@ -424,6 +506,49 @@
   <script>
     document.getElementById('yr').textContent = new Date().getFullYear();
     AOS.init({ duration: 700, once: true });
+  </script>
+
+  <!-- Environmental impact counter: fetch totals, animate up on scroll-in. -->
+  <script>
+    (function () {
+      var section = document.getElementById('impact');
+      if (!section || !('IntersectionObserver' in window)) return;
+      var data = null, inView = false, played = false;
+
+      function maybe() {
+        if (played || !inView || !data) return;
+        played = true;
+        section.querySelectorAll('[data-impact]').forEach(function (el) {
+          animate(el, Math.max(0, Math.round(Number(data[el.getAttribute('data-impact')]) || 0)));
+        });
+      }
+      function animate(el, target) {
+        var dur = 1400, startTs = null;
+        function tick(ts) {
+          if (startTs === null) startTs = ts;
+          var p = Math.min(1, (ts - startTs) / dur);
+          var eased = 1 - Math.pow(1 - p, 3);
+          el.textContent = Math.round(target * eased).toLocaleString();
+          if (p < 1) requestAnimationFrame(tick);
+          else el.textContent = target.toLocaleString();
+        }
+        requestAnimationFrame(tick);
+      }
+
+      fetch('/api/impact').then(function (r) { return r.json(); }).then(function (d) {
+        data = d;
+        var foot = section.querySelector('[data-impact-foot]');
+        if (foot) {
+          var n = d.rentals_completed || 0;
+          foot.textContent = 'Based on ' + n.toLocaleString() + ' completed rental' + (n === 1 ? '' : 's') + ' · Updated in real time';
+        }
+        maybe();
+      }).catch(function () {});
+
+      new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { if (e.isIntersecting) { inView = true; maybe(); } });
+      }, { threshold: 0.3 }).observe(section);
+    })();
   </script>
 </body>
 </html>
