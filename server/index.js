@@ -172,6 +172,16 @@ if (app.locals.analyticsHead) {
   }
 }
 
+// Explicit routes for the critical SEO files so they always serve with the
+// correct Content-Type regardless of static-middleware ordering. express.static
+// already serves them; this is belt-and-suspenders for sitemap.xml / robots.txt.
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml').sendFile(path.join(publicDir, 'sitemap.xml'));
+});
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').sendFile(path.join(publicDir, 'robots.txt'));
+});
+
 app.use(express.static(publicDir));
 
 // API/webhook requests get JSON; browser page requests get a rendered HTML page.
