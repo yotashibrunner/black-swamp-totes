@@ -68,7 +68,7 @@ async function sendBookingConfirmation(booking, pdfBuffer, baseUrl) {
       <p>${logistics} Your signed rental agreement is attached as a PDF.</p>
       <p><a href="${baseUrl}/book/${ref}" style="color:#166534">View your booking</a></p>
       <p style="font-size:13px;color:#555">Need to make changes? <a href="${baseUrl}/my-booking?ref=${ref}" style="color:#166534">Manage your booking</a> (view details or cancel).</p>
-      <p style="color:#888;font-size:12px">Black Swamp Totes · (419) 972-1669</p>
+      <p style="color:#888;font-size:12px">Black Swamp Totes · (419) 262-2837</p>
     </div>`;
 
   return resend.emails.send({
@@ -111,7 +111,7 @@ async function sendBookingReminder(booking, kind, baseUrl) {
       </table>
       <p>${detail}</p>
       <p><a href="${baseUrl || ''}/book/${ref}" style="color:#166534">View your booking</a></p>
-      <p style="color:#888;font-size:12px">Black Swamp Totes · (419) 972-1669</p>
+      <p style="color:#888;font-size:12px">Black Swamp Totes · (419) 262-2837</p>
     </div>`;
 
   return resend.emails.send({
@@ -169,7 +169,7 @@ async function sendStatement(recipients, pdf, statement) {
         <tr><td ${td}><strong>Net revenue</strong></td><td><strong style="color:#166534">${t.net_fmt}</strong></td></tr>
       </table>
       <p>The full itemized summary is attached as a PDF.</p>
-      <p style="color:#888;font-size:12px">${'Black Swamp Totes'} · (419) 972-1669</p>
+      <p style="color:#888;font-size:12px">${'Black Swamp Totes'} · (419) 262-2837</p>
     </div>`;
 
   const filename = `black-swamp-totes-summary-${statement.year}-${String(statement.month).padStart(2, '0')}.pdf`;
@@ -194,7 +194,7 @@ function shell(title, bodyHtml) {
     <div style="font-family:Arial,sans-serif;color:#0a1a0a;max-width:560px">
       <h2 style="color:#166534">${title}</h2>
       ${bodyHtml}
-      <p style="color:#888;font-size:12px">Black Swamp Totes · (419) 972-1669</p>
+      <p style="color:#888;font-size:12px">Black Swamp Totes · (419) 262-2837</p>
     </div>`;
 }
 

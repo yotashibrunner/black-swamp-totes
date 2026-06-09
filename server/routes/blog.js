@@ -37,7 +37,7 @@ const POSTS = {
       <p>The average move in Toledo generates 30 to 60 cardboard boxes. Most end up in a landfill within days. Our bins are sanitized between every rental and built to last hundreds of moves. Stronger, cleaner, and better for Northwest Ohio. No assembly. No tape. No recycling runs. Just pack and go.</p>
 
       <h2>Serving Toledo and Northwest Ohio</h2>
-      <p>We deliver to Toledo, Oregon, Northwood, Maumee, Perrysburg, Sylvania, and Bowling Green. Book online at <a href="/#packages">blackswamptotes.com</a> or call and text us at <a href="tel:+14199721669">(419) 972-1669</a>.</p>
+      <p>We deliver to Toledo, Oregon, Northwood, Maumee, Perrysburg, Sylvania, and Bowling Green. Book online at <a href="/#packages">blackswamptotes.com</a> or call and text us at <a href="tel:+14192622837">(419) 262-2837</a>.</p>
     `,
   },
 };

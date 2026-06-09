@@ -84,7 +84,7 @@ async function remindCustomer(b, kind, baseUrl) {
   await emailSvc.sendBookingReminder(b, kind, baseUrl).catch((e) => console.error('   email:', e.message));
   if (b.customer_phone) {
     const time = fmtTime(b.start_at);
-    const msg = `Black Swamp Totes reminder: your ${b.trailer_name} ${verb} is tomorrow (${fmtDay(b.start_at)})${time ? ' at ' + time : ''}. Ref ${b.ref_code}. Questions? (419) 972-1669`;
+    const msg = `Black Swamp Totes reminder: your ${b.trailer_name} ${verb} is tomorrow (${fmtDay(b.start_at)})${time ? ' at ' + time : ''}. Ref ${b.ref_code}. Questions? (419) 262-2837`;
     await smsSvc.sendSMS(b.customer_phone, msg).catch((e) => console.error('   sms:', e.message));
   }
 }

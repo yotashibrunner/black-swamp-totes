@@ -18,7 +18,7 @@ const config = require('../config');
 const { query } = require('../db');
 const { generatePdf } = require('../services/contract');
 
-const BUSINESS_PHONE = '(419) 972-1669';
+const BUSINESS_PHONE = '(419) 262-2837';
 
 const router = express.Router();
 

@@ -20,7 +20,7 @@ const { query } = require('../db');
 const config = require('../config');
 const smsSvc = require('../services/sms');
 
-const BUSINESS_PHONE = '(419) 972-1669';
+const BUSINESS_PHONE = '(419) 262-2837';
 
 // Bearer-token guard. Fail closed with 503 when the server has no secret set;
 // 401 when the caller's token is missing or wrong.
