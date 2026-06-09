@@ -15,6 +15,41 @@ const app = express();
 // cookies behave correctly behind the proxy.
 app.set('trust proxy', 1);
 
+// Don't advertise the framework/version to attackers.
+app.disable('x-powered-by');
+
+// Security headers (helmet): CSP, HSTS, X-Content-Type-Options, frameguard,
+// Referrer-Policy, etc. The CSP allow-lists the third parties the site actually
+// loads — Stripe, Google Fonts, unpkg (AOS), and (when enabled) GA4 + Pixel.
+const helmet = require('helmet');
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://js.stripe.com', 'https://unpkg.com',
+        'https://www.googletagmanager.com', 'https://connect.facebook.net', 'https://*.google-analytics.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      frameSrc: ['https://js.stripe.com', 'https://hooks.stripe.com'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", 'https://api.stripe.com', 'https://www.googletagmanager.com',
+        'https://*.google-analytics.com', 'https://connect.facebook.net', 'https://www.facebook.com'],
+    },
+  },
+  hsts: { maxAge: 31536000, includeSubDomains: true },
+  crossOriginEmbedderPolicy: false, // let cross-origin fonts / AOS / Stripe load
+}));
+
+// CORS — the API is same-origin, so only the production hostnames may call it
+// from a browser (blocks other sites from using the API with credentials).
+const cors = require('cors');
+app.use(cors({
+  origin: ['https://blackswamptotes.com', 'https://www.blackswamptotes.com'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+}));
+
 // EJS server-rendered pages live in server/views.
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -34,6 +69,37 @@ app.use('/webhooks', express.raw({ type: '*/*' }), webhookRoutes);
 
 app.use(express.json({ limit: '1mb' })); // headroom for base64 signature images
 app.use(express.urlencoded({ extended: true }));
+
+// Input hardening — runs after the body parsers (so it sees parsed input) and
+// after the raw Stripe webhook mount above (so it never touches the raw body).
+// hpp drops duplicated query/body params; xss-clean escapes <>-style HTML in
+// string inputs (leaves base64 signatures, &, #, apostrophes untouched).
+const hpp = require('hpp');
+const xssClean = require('xss-clean');
+app.use(hpp());
+app.use(xssClean());
+
+// Rate limiting (per client IP via trust-proxy). Strict on login to deter brute
+// force, an hourly cap on booking creation, and a general ceiling on the API.
+const rateLimit = require('express-rate-limit');
+const limiterOpts = { standardHeaders: true, legacyHeaders: false };
+const loginLimiter = rateLimit({
+  ...limiterOpts, windowMs: 15 * 60 * 1000, max: 10,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+});
+const bookingLimiter = rateLimit({
+  ...limiterOpts, windowMs: 60 * 60 * 1000, max: 10,
+  message: { error: 'Too many booking attempts — please try again later.' },
+});
+const apiLimiter = rateLimit({
+  ...limiterOpts, windowMs: 15 * 60 * 1000, max: 200,
+  message: { error: 'Too many requests — please slow down.' },
+});
+app.use('/api/auth/login', loginLimiter);
+// Only the booking-creation POST (not the sign/checkout/lookup sub-paths).
+app.use('/api/bookings', (req, res, next) =>
+  (req.method === 'POST' && (req.path === '/' || req.path === '')) ? bookingLimiter(req, res, next) : next());
+app.use('/api/', apiLimiter);
 
 const authRoutes = require('./routes/auth');
 const operatorRoutes = require('./routes/api-operator');

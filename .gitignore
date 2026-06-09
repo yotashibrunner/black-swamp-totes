@@ -13,3 +13,8 @@ Thumbs.db
 
 # one-off secret-bearing scripts
 scripts/reset-password.js
+
+# secrets / keys
+.env.production
+*.pem
+*.key

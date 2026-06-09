@@ -119,5 +119,12 @@ config.isProduction = config.env === 'production';
 if (config.isProduction && !process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET must be set in production');
 }
+// Enforce a minimum-entropy secret in production; warn below the recommended 64.
+if (config.isProduction && process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET is too short — use at least 32 characters (64+ recommended).');
+}
+if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 64) {
+  console.warn('[security] JWT_SECRET should be at least 64 characters for strong entropy.');
+}
 
 module.exports = config;
