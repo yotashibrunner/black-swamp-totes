@@ -59,6 +59,9 @@
           <% if (booking.student_discount_applied && booking.discount_cents > 0) { %>
           <div class="qrow"><span>Package price</span><span><%= fmt(booking.base_amount_cents) %></span></div>
           <div class="qrow"><span>🎓 Student discount (20%)</span><span style="color:var(--green)">−<%= fmt(booking.discount_cents) %></span></div>
+          <% } else if (booking.discount_applied_cents > 0) { %>
+          <div class="qrow"><span>Package price</span><span><%= fmt(booking.base_amount_cents) %></span></div>
+          <div class="qrow"><span>Partner discount<%= booking.coupon_code ? ' (' + booking.coupon_code + ')' : '' %></span><span style="color:var(--green)">−<%= fmt(booking.discount_applied_cents) %></span></div>
           <% } %>
           <div class="qtotal">
             <span class="lbl"><%= paid ? 'Paid' : 'Total charged' %></span>

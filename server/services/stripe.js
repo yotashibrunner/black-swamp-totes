@@ -47,11 +47,16 @@ async function createCheckoutSession(booking, { successUrl, cancelUrl, depositCe
   // it to zero/negative — Stripe rejects a $0 line item.
   const rentalAmount = booking.total_cents - deliveryFee; // base + tax − discount
 
-  // .edu student discount: show the pre-discount rental price and itemize the
-  // 20% off via a one-time Stripe coupon (Checkout has no negative line items),
-  // so the receipt shows the original price and the discount clearly.
+  // Discounts are itemized via a one-time Stripe coupon (Checkout has no negative
+  // line items), so the receipt shows the original price and the discount
+  // clearly. The .edu student discount and a partner/promo code never stack —
+  // booking creation already picked the greater and zeroed the other — so at
+  // most one of these is non-zero.
   const studentDiscount = booking.student_discount_applied ? Math.max(0, booking.discount_cents || 0) : 0;
-  const rentalLineAmount = rentalAmount + studentDiscount;
+  const couponDiscount = (!booking.student_discount_applied && booking.discount_applied_cents > 0)
+    ? booking.discount_applied_cents : 0;
+  const itemizedDiscount = studentDiscount + couponDiscount;
+  const rentalLineAmount = rentalAmount + itemizedDiscount; // pre-discount rental
 
   const lineItems = [];
   if (rentalLineAmount > 0) {
@@ -60,7 +65,7 @@ async function createCheckoutSession(booking, { successUrl, cancelUrl, depositCe
         currency: 'usd',
         product_data: {
           name: `${booking.trailer_name} — ${booking.ref_code}`,
-          description: (booking.discount_applied_cents > 0 || studentDiscount > 0)
+          description: itemizedDiscount > 0
             ? 'Black Swamp Totes — rental balance (discount applied)'
             : 'Black Swamp Totes — rental balance',
         },
@@ -115,13 +120,17 @@ async function createCheckoutSession(booking, { successUrl, cancelUrl, depositCe
   params.customer_creation = 'always';
   params.payment_intent_data = paymentIntentData;
 
-  // Itemize the student discount as a one-time coupon on the session.
-  if (studentDiscount > 0) {
+  // Itemize the discount as a one-time coupon on the session, with a label that
+  // names the partner code so the receipt reads e.g. "Partner discount (REDWOOD15)".
+  if (itemizedDiscount > 0) {
+    const label = studentDiscount > 0
+      ? 'Student Discount (20%)'
+      : `Partner discount (${booking.coupon_code || 'code'})`;
     const coupon = await stripe.coupons.create({
-      amount_off: studentDiscount,
+      amount_off: itemizedDiscount,
       currency: 'usd',
       duration: 'once',
-      name: 'Student Discount (20%)',
+      name: label,
     });
     params.discounts = [{ coupon: coupon.id }];
   }

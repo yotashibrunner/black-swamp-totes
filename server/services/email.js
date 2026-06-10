@@ -52,7 +52,10 @@ async function sendBookingConfirmation(booking, pdfBuffer, baseUrl) {
     booking.student_discount_applied && booking.discount_cents > 0
       ? `<tr><td ${td}>Package price</td><td>${formatCents(booking.base_amount_cents)}</td></tr>`
         + `<tr><td ${td}>🎓 Student discount (20%)</td><td style="color:#166534">−${formatCents(booking.discount_cents)}</td></tr>`
-      : '',
+      : (booking.discount_applied_cents > 0
+        ? `<tr><td ${td}>Package price</td><td>${formatCents(booking.base_amount_cents)}</td></tr>`
+          + `<tr><td ${td}>Partner discount${booking.coupon_code ? ` (${booking.coupon_code})` : ''}</td><td style="color:#166534">−${formatCents(booking.discount_applied_cents)}</td></tr>`
+        : ''),
     `<tr><td ${td}>Total charged</td><td><strong>${formatCents(booking.total_cents)}</strong></td></tr>`,
   ].filter(Boolean).join('');
 

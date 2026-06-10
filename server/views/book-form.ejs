@@ -60,7 +60,7 @@
           <% } else { %>
             <div class="qrow" id="sumDeliveryRow" hidden><span>Delivery</span><span id="sumDelivery"><%= fmt(deliveryFeeCents) %></span></div>
           <% } %>
-          <div class="qrow" id="sumDiscountRow" hidden><span>Discount <span id="sumCouponCode" class="dim"></span></span><span id="sumDiscount" style="color:var(--green)"></span></div>
+          <div class="qrow" id="sumDiscountRow" hidden><span><span id="sumDiscountLabel">Discount</span> <span id="sumCouponCode" class="dim"></span></span><span id="sumDiscount" style="color:var(--green)"></span></div>
           <div class="qrow" id="sumStudentRow" hidden><span>🎓 Student discount (20%)</span><span id="sumStudent" style="color:var(--green)"></span></div>
           <div class="qtotal">
             <span class="lbl">Total</span>
@@ -178,7 +178,7 @@
       var PER_BIN_WK = <%= trailer.weekly_rate || 0 %>;   // custom: per bin per week
       var TAX_RATE = <%= quote.tax_rate || 0 %>;
       var FIXED_BASE = <%= quote.base_cents %>;            // non-custom base (incl. extra days)
-      var coupon = null; // { code, discount_applied_cents, free_delivery }
+      var coupon = null; // { code, discount_applied_cents, free_delivery, line_label }
 
       // Current pre-tax base. For custom, full weeks at the per-bin weekly rate
       // plus any extra days at the per-bin extension rate (recomputed as qty changes).
@@ -273,7 +273,8 @@
           });
           var data = await res.json().catch(function () { return {}; });
           if (data && data.valid) {
-            coupon = { code: data.code || code, discount_applied_cents: data.discount_applied_cents || 0, free_delivery: !!data.free_delivery };
+            coupon = { code: data.code || code, discount_applied_cents: data.discount_applied_cents || 0, free_delivery: !!data.free_delivery, line_label: data.line_label || 'Discount' };
+            if (el('sumDiscountLabel')) el('sumDiscountLabel').textContent = coupon.line_label;
             el('sumCouponCode').textContent = '(' + coupon.code + ')';
             msg.style.color = 'var(--green)'; msg.textContent = data.message || 'Discount applied.';
           } else {

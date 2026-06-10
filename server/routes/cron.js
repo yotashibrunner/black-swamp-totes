@@ -19,6 +19,7 @@ const router = express.Router();
 const { query } = require('../db');
 const config = require('../config');
 const smsSvc = require('../services/sms');
+const couponsSvc = require('../services/coupons');
 
 const BUSINESS_PHONE = '(419) 262-2837';
 
@@ -98,12 +99,23 @@ async function handleReminders(req, res, next) {
         + `Would you mind leaving us a quick review? ${reviewLink} It means a lot 🌿`);
     }
 
+    // JOB 4 — expire discount/partner codes: flip active=false on any code whose
+    // valid_until (expires_at) has passed. Realtor voucher codes may carry a
+    // 90-day expiry; apartment/mover codes typically have none. Idempotent.
+    let codes_expired = 0;
+    try {
+      codes_expired = await couponsSvc.deactivateExpired();
+    } catch (e) {
+      console.error('[cron] deactivateExpired failed:', e.message);
+    }
+
     return res.json({
       ok: true,
       ran_at: ranAt,
       reminders_sent,
       overdue_notices,
       review_requests,
+      codes_expired,
       twilio_active: smsSvc.isConfigured(),
     });
   } catch (err) {

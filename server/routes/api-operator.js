@@ -382,6 +382,53 @@ router.delete('/coupons/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
+// ── Referral partners (admin) ───────────────────────────────────────────────
+// Partners are coupons carrying partner metadata; these endpoints power the
+// Referrals tab (apartments / movers / realtors with per-partner tracking).
+
+// GET /api/operator/partners — roster + summary cards.
+router.get('/partners', requireAdmin, async (req, res, next) => {
+  try {
+    const partners = await couponsSvc.listPartners();
+    const summary = await couponsSvc.partnerSummary(partners);
+    res.json({ partners, summary });
+  } catch (err) { next(err); }
+});
+
+// POST /api/operator/partners — create a partner (+ its discount code).
+router.post('/partners', requireAdmin, async (req, res, next) => {
+  try {
+    const partner = await couponsSvc.createPartner(req.body || {}, req.user.id);
+    res.status(201).json({ partner });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// GET /api/operator/partners/:id — full detail + every booking that used the code.
+router.get('/partners/:id', requireAdmin, async (req, res, next) => {
+  if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'Invalid partner id' });
+  try {
+    res.json({ partner: await couponsSvc.getPartner(req.params.id) });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// PATCH /api/operator/partners/:id — edit info / discount, or deactivate.
+router.patch('/partners/:id', requireAdmin, async (req, res, next) => {
+  if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'Invalid partner id' });
+  try {
+    await couponsSvc.updateCoupon(req.params.id, req.body || {});
+    res.json({ partner: await couponsSvc.getPartner(req.params.id) });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
 // ── Business settings (admin) ──────────────────────────────────────────────
 // GET /api/operator/settings — the operator-tunable business settings.
 router.get('/settings', requireAdmin, async (req, res, next) => {

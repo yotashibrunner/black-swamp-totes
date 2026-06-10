@@ -333,6 +333,7 @@
     root.querySelector('[data-nav="reports"]').addEventListener('click', () => renderReports());
     root.querySelector('[data-nav="audit"]').addEventListener('click', () => renderAudit());
     root.querySelector('[data-nav="settings"]').addEventListener('click', () => renderSettings());
+    root.querySelector('[data-nav="referrals"]').addEventListener('click', () => renderReferrals());
     root.querySelector('[data-nav="coupons"]').addEventListener('click', () => renderCoupons());
 
     // Role-gated nav: admin-only items (inventory, calendar, accounts,
@@ -1148,6 +1149,278 @@
         saveBtn.disabled = false; saveBtn.textContent = 'Create coupon';
       }
     });
+  }
+
+  // ── Referrals / partners (admin) ─────────────────────────────────────────
+  // Discount presets per partner type — what the Quick-add buttons prefill.
+  const PARTNER_PRESETS = {
+    apartment: { dtype: 'percent', dvalue: '15' },
+    mover: { dtype: 'percent', dvalue: '10' },
+    realtor: { dtype: 'flat', dvalue: '50' },
+  };
+  const PARTNER_TYPE_LABEL = { apartment: 'Apartment', mover: 'Mover', realtor: 'Realtor' };
+
+  async function renderReferrals() {
+    mount('tpl-referrals');
+    root.querySelector('[data-back]').addEventListener('click', () => renderDashboard());
+    root.querySelector('[data-add]').addEventListener('click', () => renderReferralForm());
+
+    const loadingEl = root.querySelector('[data-loading]');
+    const errEl = root.querySelector('[data-error]');
+    const bodyEl = root.querySelector('[data-body]');
+    const listEl = root.querySelector('[data-list]');
+    const emptyEl = root.querySelector('[data-empty]');
+
+    let partners = [];
+    let summary = {};
+    try {
+      const data = await api.apiFetch('/api/operator/partners');
+      partners = data.partners || [];
+      summary = data.summary || {};
+    } catch (err) {
+      if (handleAuth(err)) return;
+      loadingEl.hidden = true;
+      errEl.textContent = err.message || 'Could not load partners.';
+      errEl.hidden = false;
+      return;
+    }
+    loadingEl.hidden = true;
+    bodyEl.hidden = false;
+
+    // Summary cards.
+    root.querySelector('[data-sum-total]').textContent = summary.total_partners || 0;
+    root.querySelector('[data-sum-active]').textContent = summary.active_partners || 0;
+    root.querySelector('[data-sum-revenue]').textContent = summary.revenue_fmt || '$0';
+    root.querySelector('[data-sum-top]').textContent = summary.top_partner || '—';
+
+    // Quick-add presets.
+    root.querySelectorAll('[data-quick]').forEach((btn) => {
+      btn.addEventListener('click', () => renderReferralForm(btn.getAttribute('data-quick')));
+    });
+
+    // Client-side filter + sort state.
+    let filter = 'all';
+    let sortKey = 'revenue_cents';
+    let sortDir = -1; // descending
+
+    const rowTpl = document.getElementById('tpl-referral-row');
+    function paint() {
+      let rows = partners.slice();
+      if (filter !== 'all') rows = rows.filter((p) => p.partner_type === filter);
+      rows.sort((a, b) => {
+        const av = a[sortKey] || 0;
+        const bv = b[sortKey] || 0;
+        if (av === bv) return (a.partner_name || '').localeCompare(b.partner_name || '');
+        return (av < bv ? -1 : 1) * sortDir;
+      });
+
+      listEl.replaceChildren();
+      for (const p of rows) {
+        const node = rowTpl.content.cloneNode(true);
+        node.querySelector('[data-name]').textContent = p.partner_name || '—';
+        const typeEl = node.querySelector('[data-type]');
+        typeEl.textContent = p.type_label || p.partner_type;
+        typeEl.classList.add(`ref-type-${p.partner_type}`);
+        node.querySelector('[data-code]').textContent = p.code;
+        node.querySelector('[data-discount]').textContent = p.discount_fmt + (p.active ? '' : ' · inactive');
+        const bk = node.querySelector('[data-bookings]');
+        bk.textContent = p.bookings_count;
+        bk.classList.add(p.bookings_count > 0 ? 'ref-b-on' : 'ref-b-off');
+        node.querySelector('[data-revenue]').textContent = p.revenue_fmt;
+        node.querySelector('[data-last]').textContent = p.last_used ? fmtDay(p.last_used) : '—';
+        node.querySelector('[data-open]').addEventListener('click', () => renderReferralDetail(p.id));
+        listEl.appendChild(node);
+      }
+      emptyEl.hidden = rows.length > 0;
+    }
+
+    root.querySelectorAll('[data-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        filter = btn.getAttribute('data-filter');
+        root.querySelectorAll('[data-filter]').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+        paint();
+      });
+    });
+    root.querySelectorAll('[data-sort]').forEach((th) => {
+      th.addEventListener('click', () => {
+        const key = th.getAttribute('data-sort');
+        if (sortKey === key) sortDir = -sortDir; else { sortKey = key; sortDir = -1; }
+        root.querySelectorAll('[data-sort]').forEach((t) => t.classList.remove('sort-asc', 'sort-desc'));
+        th.classList.add(sortDir === -1 ? 'sort-desc' : 'sort-asc');
+        paint();
+      });
+    });
+
+    paint();
+  }
+
+  // Create form, or edit when `existing` (a partner object) is supplied.
+  function renderReferralForm(presetType, existing) {
+    mount('tpl-referral-form');
+    const editing = !!existing;
+    root.querySelector('.topbar-title').textContent = editing ? 'Edit partner' : 'New partner';
+    root.querySelector('[data-back]').addEventListener('click', () =>
+      (editing ? renderReferralDetail(existing.id) : renderReferrals()));
+
+    const typeEl = root.querySelector('[data-type]');
+    const nameEl = root.querySelector('[data-name]');
+    const contactEl = root.querySelector('[data-contact]');
+    const phoneEl = root.querySelector('[data-phone]');
+    const emailEl = root.querySelector('[data-email]');
+    const codeEl = root.querySelector('[data-code]');
+    const dtypeEl = root.querySelector('[data-dtype]');
+    const dvalueEl = root.querySelector('[data-dvalue]');
+    const dvalueLabel = root.querySelector('[data-dvalue-label]');
+    const expiresEl = root.querySelector('[data-expires]');
+    const notesEl = root.querySelector('[data-notes]');
+    const errEl = root.querySelector('[data-error]');
+    const saveBtn = root.querySelector('[data-save]');
+
+    function syncDtype() {
+      const flat = dtypeEl.value === 'flat';
+      dvalueLabel.textContent = flat ? 'Amount off ($)' : 'Percent off';
+      dvalueEl.step = flat ? '0.01' : '1';
+    }
+    dtypeEl.addEventListener('change', syncDtype);
+
+    if (editing) {
+      typeEl.value = existing.partner_type;
+      typeEl.disabled = true; // a partner's channel doesn't change
+      nameEl.value = existing.partner_name || '';
+      contactEl.value = existing.partner_contact || '';
+      phoneEl.value = existing.partner_phone || '';
+      emailEl.value = existing.partner_email || '';
+      codeEl.value = existing.code;
+      codeEl.readOnly = true; // the code is the partner's identity once issued
+      dtypeEl.value = existing.discount_type === 'percentage' ? 'percent' : existing.discount_type;
+      dvalueEl.value = existing.discount_type === 'flat' ? centsToInput(existing.discount_value) : String(existing.discount_value);
+      if (existing.expires_at) expiresEl.value = String(existing.expires_at).slice(0, 10);
+      notesEl.value = existing.notes || '';
+      saveBtn.textContent = 'Save changes';
+    } else if (presetType && PARTNER_PRESETS[presetType]) {
+      typeEl.value = presetType;
+      dtypeEl.value = PARTNER_PRESETS[presetType].dtype;
+      dvalueEl.value = PARTNER_PRESETS[presetType].dvalue;
+    }
+    syncDtype();
+
+    root.querySelector('[data-form]').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errEl.hidden = true;
+      const dtype = dtypeEl.value;
+      const body = {
+        partner_type: typeEl.value,
+        partner_name: nameEl.value.trim(),
+        partner_contact: contactEl.value.trim() || null,
+        partner_phone: phoneEl.value.trim() || null,
+        partner_email: emailEl.value.trim() || null,
+        discount_type: dtype,
+        discount_value: dtype === 'flat' ? inputToCents(dvalueEl.value) : parseInt(dvalueEl.value, 10),
+        expires_at: expiresEl.value || null,
+        notes: notesEl.value.trim() || null,
+      };
+      if (!editing) body.code = codeEl.value.trim().toUpperCase() || undefined;
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = editing ? 'Saving…' : 'Creating…';
+      try {
+        if (editing) {
+          await api.apiFetch(`/api/operator/partners/${existing.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+          renderReferralDetail(existing.id);
+        } else {
+          const data = await api.apiFetch('/api/operator/partners', { method: 'POST', body: JSON.stringify(body) });
+          renderReferralDetail(data.partner.id);
+        }
+      } catch (err) {
+        if (handleAuth(err)) return;
+        errEl.textContent = err.message || 'Could not save the partner.';
+        errEl.hidden = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = editing ? 'Save changes' : 'Create partner';
+      }
+    });
+  }
+
+  async function renderReferralDetail(id) {
+    mount('tpl-referral-detail');
+    root.querySelector('[data-back]').addEventListener('click', () => renderReferrals());
+
+    const loadingEl = root.querySelector('[data-loading]');
+    const errEl = root.querySelector('[data-error]');
+    const detailEl = root.querySelector('[data-detail]');
+
+    let p;
+    try {
+      const data = await api.apiFetch(`/api/operator/partners/${id}`);
+      p = data.partner;
+    } catch (err) {
+      if (handleAuth(err)) return;
+      loadingEl.hidden = true;
+      errEl.textContent = err.message || 'Could not load this partner.';
+      errEl.hidden = false;
+      return;
+    }
+    loadingEl.hidden = true;
+    detailEl.hidden = false;
+
+    root.querySelector('[data-name]').textContent = p.partner_name;
+    const statusEl = root.querySelector('[data-status]');
+    statusEl.textContent = p.active ? 'Active' : 'Inactive';
+    statusEl.className = `badge ${p.active ? 'badge-ok' : 'badge-oos'}`;
+    const typeEl = root.querySelector('[data-type]');
+    typeEl.textContent = p.type_label || p.partner_type;
+    typeEl.classList.add(`ref-type-${p.partner_type}`);
+    root.querySelector('[data-code]').textContent = p.code;
+    root.querySelector('[data-discount]').textContent = p.discount_fmt;
+
+    function setRow(rowSel, valSel, value) {
+      if (value) { root.querySelector(valSel).textContent = value; root.querySelector(rowSel).hidden = false; }
+    }
+    setRow('[data-contact-row]', '[data-contact]', p.partner_contact);
+    setRow('[data-phone-row]', '[data-phone]', p.partner_phone);
+    setRow('[data-email-row]', '[data-email]', p.partner_email);
+    setRow('[data-expires-row]', '[data-expires]', p.expires_at ? fmtDay(p.expires_at) : '');
+    setRow('[data-notes-row]', '[data-notes]', p.notes);
+    root.querySelector('[data-bookings]').textContent = String(p.bookings_count);
+    root.querySelector('[data-revenue]').textContent = p.revenue_fmt;
+
+    root.querySelector('[data-edit]').addEventListener('click', () => renderReferralForm(null, p));
+
+    const actionErr = root.querySelector('[data-action-error]');
+    const toggleEl = root.querySelector('[data-toggle]');
+    toggleEl.textContent = p.active ? 'Deactivate' : 'Activate';
+    toggleEl.classList.add(p.active ? 'btn-danger' : 'btn-restore');
+    toggleEl.addEventListener('click', async () => {
+      toggleEl.disabled = true;
+      actionErr.hidden = true;
+      try {
+        await api.apiFetch(`/api/operator/partners/${p.id}`, { method: 'PATCH', body: JSON.stringify({ active: !p.active }) });
+        renderReferralDetail(p.id);
+      } catch (err) {
+        if (handleAuth(err)) return;
+        actionErr.textContent = err.message || 'Could not update.';
+        actionErr.hidden = false;
+        toggleEl.disabled = false;
+      }
+    });
+
+    // Bookings that used this code.
+    const bkList = root.querySelector('[data-bookings-list]');
+    const bkEmpty = root.querySelector('[data-bookings-empty]');
+    const bkTpl = document.getElementById('tpl-referral-booking-row');
+    bkList.replaceChildren();
+    const bookings = p.bookings || [];
+    if (!bookings.length) {
+      bkEmpty.hidden = false;
+    } else {
+      for (const b of bookings) {
+        const node = bkTpl.content.cloneNode(true);
+        node.querySelector('[data-customer]').textContent = b.customer_name || '—';
+        node.querySelector('[data-sub]').textContent = `${fmtDay(b.created_at)} · ${b.package_name}`;
+        node.querySelector('[data-amt]').textContent = b.total_fmt;
+        bkList.appendChild(node);
+      }
+    }
   }
 
   // ── Settings (admin) ─────────────────────────────────────────────────────

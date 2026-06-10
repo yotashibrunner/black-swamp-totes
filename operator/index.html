@@ -133,6 +133,14 @@
           </span>
           <span class="nav-chevron" aria-hidden="true">›</span>
         </button>
+        <button type="button" class="nav-item" data-nav="referrals" data-admin hidden>
+          <span class="nav-icon" aria-hidden="true">🤝</span>
+          <span class="nav-text">
+            <span class="nav-label">Referrals</span>
+            <span class="nav-sub muted">Apartments · movers · realtors</span>
+          </span>
+          <span class="nav-chevron" aria-hidden="true">›</span>
+        </button>
         <button type="button" class="nav-item" data-nav="coupons" data-admin hidden>
           <span class="nav-icon" aria-hidden="true">🏷️</span>
           <span class="nav-text">
@@ -490,6 +498,200 @@
         <button type="submit" class="btn btn-primary" data-save>Create coupon</button>
       </form>
     </main>
+  </template>
+
+  <!-- ── Referrals (admin) ──────────────────────────────────────────── -->
+  <template id="tpl-referrals">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
+      <span class="topbar-title">Referrals</span>
+      <button type="button" class="btn btn-ghost" data-add>+ New</button>
+    </header>
+    <main class="screen content">
+      <p class="empty" data-loading>Loading…</p>
+      <p class="error" data-error hidden></p>
+
+      <div data-body hidden>
+        <!-- Summary cards -->
+        <section class="ref-cards">
+          <div class="ref-card"><span class="ref-card-num" data-sum-total>0</span><span class="ref-card-lbl">Total partners</span></div>
+          <div class="ref-card"><span class="ref-card-num" data-sum-active>0</span><span class="ref-card-lbl">Active (sent ≥1)</span></div>
+          <div class="ref-card"><span class="ref-card-num" data-sum-revenue>$0</span><span class="ref-card-lbl">Referral revenue</span></div>
+          <div class="ref-card"><span class="ref-card-num ref-card-name" data-sum-top>—</span><span class="ref-card-lbl">Top partner</span></div>
+        </section>
+
+        <!-- Quick-add presets -->
+        <section class="card">
+          <h2 class="ref-h">Quick add</h2>
+          <div class="ref-quick">
+            <button type="button" class="btn btn-ghost" data-quick="apartment">🏢 Apartment · 15%</button>
+            <button type="button" class="btn btn-ghost" data-quick="mover">🚚 Mover · 10%</button>
+            <button type="button" class="btn btn-ghost" data-quick="realtor">🏠 Realtor · $50 flat</button>
+          </div>
+        </section>
+
+        <!-- Type filter -->
+        <div class="seg ref-filter" role="group" aria-label="Filter by type">
+          <button type="button" class="seg-btn" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" class="seg-btn" data-filter="apartment" aria-pressed="false">Apartments</button>
+          <button type="button" class="seg-btn" data-filter="mover" aria-pressed="false">Movers</button>
+          <button type="button" class="seg-btn" data-filter="realtor" aria-pressed="false">Realtors</button>
+        </div>
+
+        <div class="ref-table-wrap">
+          <table class="ref-table">
+            <thead>
+              <tr>
+                <th>Partner</th>
+                <th>Type</th>
+                <th>Code</th>
+                <th>Discount</th>
+                <th class="num sortable" data-sort="bookings_count">Bookings</th>
+                <th class="num sortable" data-sort="revenue_cents">Revenue</th>
+                <th>Last Used</th>
+              </tr>
+            </thead>
+            <tbody data-list></tbody>
+          </table>
+        </div>
+        <p class="empty" data-empty hidden>No partners yet. Use Quick add or “+ New”.</p>
+      </div>
+    </main>
+  </template>
+
+  <!-- A single partner row (cloned into the referrals table). -->
+  <template id="tpl-referral-row">
+    <tr class="ref-row" data-open>
+      <td class="ref-name" data-name></td>
+      <td><span class="badge ref-type" data-type></span></td>
+      <td class="ref-code" data-code></td>
+      <td data-discount></td>
+      <td class="num"><span class="ref-bookings" data-bookings>0</span></td>
+      <td class="num" data-revenue>$0</td>
+      <td class="muted" data-last></td>
+    </tr>
+  </template>
+
+  <!-- New / quick-add partner form -->
+  <template id="tpl-referral-form">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Cancel</button>
+      <span class="topbar-title">New partner</span>
+      <span class="topbar-spacer"></span>
+    </header>
+    <main class="screen content">
+      <form class="card detail-form" data-form novalidate>
+        <div class="field">
+          <label for="rf-type">Partner type</label>
+          <select id="rf-type" data-type>
+            <option value="apartment">Apartment</option>
+            <option value="mover">Mover</option>
+            <option value="realtor">Realtor</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="rf-name">Partner name</label>
+          <input id="rf-name" type="text" data-name maxlength="120" placeholder="Redwood Apartments" />
+        </div>
+        <div class="field">
+          <label for="rf-contact">Contact person <span class="muted">(optional)</span></label>
+          <input id="rf-contact" type="text" data-contact maxlength="120" placeholder="PM name, owner, agent" />
+        </div>
+        <div class="field">
+          <label for="rf-phone">Phone <span class="muted">(optional)</span></label>
+          <input id="rf-phone" type="tel" data-phone inputmode="tel" maxlength="20" />
+        </div>
+        <div class="field">
+          <label for="rf-email">Email <span class="muted">(optional)</span></label>
+          <input id="rf-email" type="email" data-email inputmode="email" autocapitalize="off" maxlength="120" />
+        </div>
+        <div class="field">
+          <label for="rf-code">Code</label>
+          <input id="rf-code" type="text" data-code autocapitalize="characters" style="text-transform:uppercase" placeholder="REDWOOD15" />
+        </div>
+        <div class="field-row two">
+          <div class="field">
+            <label for="rf-dtype">Discount type</label>
+            <select id="rf-dtype" data-dtype>
+              <option value="percent">Percent (%)</option>
+              <option value="flat">Flat ($)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="rf-dvalue" data-dvalue-label>Percent off</label>
+            <input id="rf-dvalue" type="number" min="0" step="1" inputmode="numeric" data-dvalue />
+          </div>
+        </div>
+        <div class="field">
+          <label for="rf-expires">Expires <span class="muted">(optional — e.g. 90-day realtor voucher)</span></label>
+          <input id="rf-expires" type="date" data-expires />
+        </div>
+        <div class="field">
+          <label for="rf-notes">Notes <span class="muted">(optional)</span></label>
+          <textarea id="rf-notes" data-notes rows="2" maxlength="2000" placeholder="In move-in packet, visited 6/8…"></textarea>
+        </div>
+        <p class="error" data-error hidden></p>
+        <button type="submit" class="btn btn-primary" data-save>Create partner</button>
+      </form>
+    </main>
+  </template>
+
+  <!-- Partner detail -->
+  <template id="tpl-referral-detail">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
+      <span class="topbar-title">Partner</span>
+      <span class="topbar-spacer"></span>
+    </header>
+    <main class="screen content">
+      <p class="empty" data-loading>Loading…</p>
+      <p class="error" data-error hidden></p>
+
+      <div data-detail hidden>
+        <section class="card detail-head">
+          <div class="status-row">
+            <h2 data-name></h2>
+            <span class="badge" data-status></span>
+          </div>
+          <p class="muted"><span class="badge ref-type" data-type></span> · code <span class="ref-code" data-code></span></p>
+        </section>
+
+        <section class="card">
+          <dl class="kv">
+            <div><dt>Discount</dt><dd data-discount></dd></div>
+            <div data-contact-row hidden><dt>Contact</dt><dd data-contact></dd></div>
+            <div data-phone-row hidden><dt>Phone</dt><dd data-phone></dd></div>
+            <div data-email-row hidden><dt>Email</dt><dd data-email></dd></div>
+            <div data-expires-row hidden><dt>Expires</dt><dd data-expires></dd></div>
+            <div><dt>Bookings</dt><dd data-bookings></dd></div>
+            <div><dt>Revenue generated</dt><dd data-revenue></dd></div>
+            <div data-notes-row hidden><dt>Notes</dt><dd data-notes></dd></div>
+          </dl>
+          <div class="ref-actions">
+            <button type="button" class="btn btn-ghost" data-edit>Edit</button>
+            <button type="button" class="btn btn-toggle" data-toggle></button>
+          </div>
+          <p class="error" data-action-error hidden></p>
+        </section>
+
+        <section class="card">
+          <h2 class="ref-h">Bookings with this code</h2>
+          <ul class="ref-booking-list" data-bookings-list></ul>
+          <p class="empty" data-bookings-empty hidden>No bookings have used this code yet.</p>
+        </section>
+      </div>
+    </main>
+  </template>
+
+  <!-- A single booking row inside the partner detail. -->
+  <template id="tpl-referral-booking-row">
+    <li class="ref-booking-row">
+      <span class="ref-booking-meta">
+        <span class="ref-booking-name" data-customer></span>
+        <span class="ref-booking-sub muted" data-sub></span>
+      </span>
+      <span class="ref-booking-amt" data-amt></span>
+    </li>
   </template>
 
   <!-- ── Settings (admin) ───────────────────────────────────────────── -->

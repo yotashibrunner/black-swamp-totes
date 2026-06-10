@@ -663,3 +663,51 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 /* ── Address rows must wrap fully (no truncation) ───────────────────── */
 .kv dd { overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
 .kv dd a { white-space: normal; overflow-wrap: anywhere; }
+
+/* ── Referrals / partners ───────────────────────────────────────────── */
+.ref-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.ref-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px; display: flex; flex-direction: column; gap: 4px;
+}
+.ref-card-num { font-size: 1.4rem; font-weight: 700; color: #6fd58c; }
+.ref-card-name { font-size: 1.05rem; line-height: 1.2; overflow-wrap: anywhere; }
+.ref-card-lbl { font-size: 0.76rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+
+.ref-h { margin: 0 0 10px; font-size: 1rem; }
+.ref-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.ref-quick .btn { flex: 1 1 auto; white-space: nowrap; }
+.ref-filter { margin-top: 4px; }
+
+.ref-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: 10px; }
+.ref-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; min-width: 560px; }
+.ref-table th, .ref-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.ref-table thead th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); background: var(--surface); position: sticky; top: 0; }
+.ref-table tbody tr:last-child td { border-bottom: 0; }
+.ref-table .num { text-align: right; }
+.ref-table th.sortable { cursor: pointer; user-select: none; }
+.ref-table th.sortable.sort-asc::after { content: ' ▲'; color: var(--accent); }
+.ref-table th.sortable.sort-desc::after { content: ' ▼'; color: var(--accent); }
+.ref-row { cursor: pointer; }
+.ref-row:active { background: rgba(34,197,94,.07); }
+.ref-name { font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
+.ref-code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; letter-spacing: .04em; }
+.ref-bookings { font-weight: 700; }
+.ref-b-on { color: #6fd58c; }              /* >0 bookings — live partner */
+.ref-b-off { color: var(--muted); }        /* 0 bookings — dead partner */
+
+.ref-type { background: rgba(154,164,182,.18); color: var(--muted); }
+.ref-type-apartment { background: rgba(80,140,230,.20); color: #8ab4f8; }
+.ref-type-mover { background: rgba(214,158,46,.18); color: #f0c674; }
+.ref-type-realtor { background: rgba(34,197,94,.18); color: #6fd58c; }
+
+.ref-actions { display: flex; gap: 8px; margin-top: 12px; }
+.ref-actions .btn { flex: 1; }
+
+.ref-booking-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ref-booking-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.ref-booking-row:last-child { border-bottom: 0; }
+.ref-booking-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ref-booking-name { font-weight: 600; }
+.ref-booking-sub { font-size: 0.78rem; }
+.ref-booking-amt { font-weight: 700; white-space: nowrap; }
