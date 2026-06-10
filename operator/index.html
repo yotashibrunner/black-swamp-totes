@@ -125,6 +125,14 @@
           </span>
           <span class="nav-chevron" aria-hidden="true">›</span>
         </button>
+        <button type="button" class="nav-item" data-nav="financials" data-reports hidden>
+          <span class="nav-icon" aria-hidden="true">🧾</span>
+          <span class="nav-text">
+            <span class="nav-label">Financials</span>
+            <span class="nav-sub muted">Tax collected · net · CPA export</span>
+          </span>
+          <span class="nav-chevron" aria-hidden="true">›</span>
+        </button>
         <button type="button" class="nav-item" data-nav="audit" data-reports hidden>
           <span class="nav-icon" aria-hidden="true">📜</span>
           <span class="nav-text">
@@ -1149,6 +1157,59 @@
           <h2>Current Operations</h2>
           <ul class="rep-list" data-ops></ul>
         </section>
+      </div>
+    </main>
+  </template>
+
+  <!-- ── Financials (admin + owner) ─────────────────────────────────── -->
+  <template id="tpl-financials">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost" data-back>‹ Back</button>
+      <span class="topbar-title">Financials</span>
+      <span class="topbar-spacer"></span>
+    </header>
+
+    <main class="screen content">
+      <p class="rep-eyebrow">Financials — Black Swamp Totes</p>
+
+      <div class="card">
+        <label class="field">
+          <span>Tax collected for a month <span class="muted">(one click)</span></span>
+          <input type="month" class="date-input" data-month aria-label="Pick a month" />
+        </label>
+        <div class="seg" role="group" aria-label="Period" data-periods style="margin-top:10px;">
+          <button type="button" class="seg-btn" data-period="thismonth" aria-pressed="true">This month</button>
+          <button type="button" class="seg-btn" data-period="lastmonth">Last month</button>
+          <button type="button" class="seg-btn" data-period="quarter">This quarter</button>
+          <button type="button" class="seg-btn" data-period="ytd">YTD</button>
+          <button type="button" class="seg-btn" data-period="all">All time</button>
+        </div>
+      </div>
+
+      <p class="rep-range muted" data-range></p>
+      <p class="empty" data-loading hidden>Loading…</p>
+      <p class="error" data-error hidden></p>
+
+      <div data-body hidden>
+        <!-- The number you remit to Ohio. -->
+        <section class="card fin-tax-card">
+          <span class="fin-tax-label">Sales tax collected — remit to Ohio</span>
+          <span class="fin-tax-num" data-tax>$0</span>
+          <span class="fin-tax-sub muted" data-tax-sub></span>
+        </section>
+
+        <div class="stat-grid">
+          <div class="stat-card"><span class="stat-label">Gross revenue</span><span class="stat-val" data-gross>$0</span></div>
+          <div class="stat-card"><span class="stat-label">Discounts given</span><span class="stat-val" data-discounts>$0</span></div>
+          <div class="stat-card"><span class="stat-label">Sales tax collected</span><span class="stat-val" data-tax2>$0</span></div>
+          <div class="stat-card"><span class="stat-label">Stripe fees</span><span class="stat-val" data-fees>$0</span></div>
+          <div class="stat-card"><span class="stat-label">Refunds</span><span class="stat-val" data-refunds>$0</span></div>
+          <div class="stat-card stat-total"><span class="stat-label">Net deposited</span><span class="stat-val" data-net>$0</span></div>
+        </div>
+        <p class="muted small" data-fees-note hidden>⚠ Some Stripe fees are estimated (2.9% + 30¢) — the rest are the actual fees Stripe charged.</p>
+
+        <button type="button" class="btn btn-primary" data-csv style="margin-top:14px;">⬇ Download CPA CSV (every money field)</button>
+        <p class="error" data-csv-error hidden></p>
       </div>
     </main>
   </template>

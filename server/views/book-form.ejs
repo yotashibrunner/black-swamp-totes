@@ -226,13 +226,18 @@
 
       function refresh() {
         var base = baseCents();
-        var tax = Math.round(base * TAX_RATE);
         var delivery = deliveryFor();
         var couponDisc = discountFor(delivery, base);
         var studentDisc = studentDiscountCents();
         var useStudent = studentDisc > couponDisc && studentDisc > 0;
-        var disc = useStudent ? studentDisc : couponDisc;
-        var total = base + tax + delivery - disc;
+        // Tax is charged on the POST-discount base (matches the server). A
+        // free_delivery code reduces the (untaxed) delivery fee, not the base.
+        var couponFreeDelivery = coupon && coupon.free_delivery;
+        var baseDisc = useStudent ? studentDisc : (couponFreeDelivery ? 0 : couponDisc);
+        var deliveryDisc = (!useStudent && couponFreeDelivery) ? Math.min(delivery, couponDisc) : 0;
+        var taxable = Math.max(0, base - baseDisc);
+        var tax = Math.round(taxable * TAX_RATE);
+        var total = taxable + tax + (delivery - deliveryDisc);
         if (total < 0) total = 0;
         if (el('sumSubtotal')) el('sumSubtotal').textContent = money(base);
         if (el('sumTax')) el('sumTax').textContent = money(tax);

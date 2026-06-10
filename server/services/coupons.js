@@ -106,12 +106,14 @@ async function validateCoupon({ code, trailerId, baseAmountCents }) {
 // code is present but invalid, so the customer is told rather than silently
 // charged full price. Returns { couponId, discountCents } (zeros when no code).
 async function resolveForBooking({ code, trailerId, baseAmountCents, deliveryFeeCents, fulfillment }) {
-  if (!code || !String(code).trim()) return { couponId: null, discountCents: 0 };
+  if (!code || !String(code).trim()) return { couponId: null, discountCents: 0, freeDelivery: false };
   const result = await validateCoupon({ code, trailerId, baseAmountCents });
   if (!result.valid) throw badRequest(result.message);
   const coupon = await couponByCode(code);
   const discountCents = computeDiscount(coupon, baseAmountCents, deliveryFeeCents, fulfillment);
-  return { couponId: coupon.id, discountCents };
+  // free_delivery discounts the delivery fee, not the taxable base — the caller
+  // needs to know so tax is computed on the right amount.
+  return { couponId: coupon.id, discountCents, freeDelivery: coupon.discount_type === 'free_delivery' };
 }
 
 // Record a coupon use on payment (idempotent via the unique index on

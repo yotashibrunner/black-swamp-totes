@@ -711,3 +711,14 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 .ref-booking-name { font-weight: 600; }
 .ref-booking-sub { font-size: 0.78rem; }
 .ref-booking-amt { font-weight: 700; white-space: nowrap; }
+
+/* ── Financials ──────────────────────────────────────────────────────── */
+.fin-tax-card {
+  border-color: var(--accent);
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
+  background: linear-gradient(180deg, rgba(34,197,94,.10), var(--surface));
+}
+.fin-tax-label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.fin-tax-num { font-size: 2.2rem; font-weight: 800; color: #6fd58c; line-height: 1.05; }
+.fin-tax-sub { font-size: 0.78rem; }
+.stat-card .stat-val[data-discounts], .stat-card .stat-val[data-fees], .stat-card .stat-val[data-refunds] { color: #f0a0a0; }

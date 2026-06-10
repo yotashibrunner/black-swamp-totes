@@ -331,6 +331,7 @@
     root.querySelector('[data-nav="accounts"]').addEventListener('click', () => renderAccounts());
     root.querySelector('[data-nav="diagnostics"]').addEventListener('click', () => renderDiagnostics());
     root.querySelector('[data-nav="reports"]').addEventListener('click', () => renderReports());
+    root.querySelector('[data-nav="financials"]').addEventListener('click', () => renderFinancials());
     root.querySelector('[data-nav="audit"]').addEventListener('click', () => renderAudit());
     root.querySelector('[data-nav="settings"]').addEventListener('click', () => renderSettings());
     root.querySelector('[data-nav="referrals"]').addEventListener('click', () => renderReferrals());
@@ -1421,6 +1422,118 @@
         bkList.appendChild(node);
       }
     }
+  }
+
+  // ── Financials (admin + owner) ───────────────────────────────────────────
+  function renderFinancials() {
+    mount('tpl-financials');
+    root.querySelector('[data-back]').addEventListener('click', () => renderDashboard());
+
+    const monthEl = root.querySelector('[data-month]');
+    const rangeEl = root.querySelector('[data-range]');
+    const loadingEl = root.querySelector('[data-loading]');
+    const errEl = root.querySelector('[data-error]');
+    const bodyEl = root.querySelector('[data-body]');
+    const feesNote = root.querySelector('[data-fees-note]');
+    const csvBtn = root.querySelector('[data-csv]');
+    const csvErr = root.querySelector('[data-csv-error]');
+
+    const ymd = (d) => d.toISOString().slice(0, 10);
+    function monthBounds(year, month0) {
+      return { from: ymd(new Date(Date.UTC(year, month0, 1))), to: ymd(new Date(Date.UTC(year, month0 + 1, 0))) };
+    }
+    function periodRange(period) {
+      const now = new Date();
+      const y = now.getUTCFullYear();
+      const m = now.getUTCMonth();
+      if (period === 'thismonth') return monthBounds(y, m);
+      if (period === 'lastmonth') return monthBounds(y, m - 1);
+      if (period === 'quarter') {
+        const qs = Math.floor(m / 3) * 3;
+        return { from: ymd(new Date(Date.UTC(y, qs, 1))), to: ymd(new Date(Date.UTC(y, qs + 3, 0))) };
+      }
+      if (period === 'ytd') return { from: ymd(new Date(Date.UTC(y, 0, 1))), to: ymd(now) };
+      return { from: '2020-01-01', to: ymd(now) }; // all time
+    }
+
+    let current = { from: null, to: null };
+
+    async function load(from, to, label) {
+      current = { from, to };
+      rangeEl.textContent = label || `${from} → ${to}`;
+      errEl.hidden = true; bodyEl.hidden = true; loadingEl.hidden = false;
+      let fin;
+      try {
+        const data = await api.apiFetch(`/api/operator/reports/financials?from=${from}&to=${to}`);
+        fin = data.financials || {};
+      } catch (err) {
+        if (handleAuth(err)) return;
+        loadingEl.hidden = true;
+        errEl.textContent = err.message || 'Could not load financials.';
+        errEl.hidden = false;
+        return;
+      }
+      loadingEl.hidden = true;
+      bodyEl.hidden = false;
+      root.querySelector('[data-tax]').textContent = fin.tax_collected_fmt || '$0';
+      root.querySelector('[data-tax-sub]').textContent =
+        `${fin.booking_count || 0} paid booking${fin.booking_count === 1 ? '' : 's'} in this period`;
+      root.querySelector('[data-gross]').textContent = fin.gross_fmt || '$0';
+      root.querySelector('[data-discounts]').textContent = '−' + (fin.discounts_fmt || '$0');
+      root.querySelector('[data-tax2]').textContent = fin.tax_collected_fmt || '$0';
+      root.querySelector('[data-fees]').textContent = '−' + (fin.stripe_fees_fmt || '$0');
+      root.querySelector('[data-refunds]').textContent = '−' + (fin.refunds_fmt || '$0');
+      root.querySelector('[data-net]').textContent = fin.net_fmt || '$0';
+      feesNote.hidden = !fin.fees_estimated;
+    }
+
+    // Month picker — one click pulls tax collected for that month.
+    monthEl.addEventListener('change', () => {
+      if (!monthEl.value) return;
+      const [yy, mm] = monthEl.value.split('-').map((n) => parseInt(n, 10));
+      const { from, to } = monthBounds(yy, mm - 1);
+      const label = new Date(Date.UTC(yy, mm - 1, 1)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+      root.querySelectorAll('[data-period]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+      load(from, to, label);
+    });
+
+    root.querySelectorAll('[data-period]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        root.querySelectorAll('[data-period]').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+        monthEl.value = '';
+        const { from, to } = periodRange(btn.getAttribute('data-period'));
+        load(from, to, btn.textContent.trim());
+      });
+    });
+
+    // Authenticated CSV download (apiFetch parses JSON, so fetch the blob here).
+    csvBtn.addEventListener('click', async () => {
+      csvErr.hidden = true;
+      const { from, to } = current;
+      if (!from) return;
+      const url = `/api/operator/reports/export.csv?from=${from}&to=${to}`;
+      try {
+        let res = await fetch(url, { headers: { Authorization: `Bearer ${api.auth.access}` } });
+        if (res.status === 401 && await api.refresh()) {
+          res = await fetch(url, { headers: { Authorization: `Bearer ${api.auth.access}` } });
+        }
+        if (!res.ok) throw new Error(`Export failed (${res.status}).`);
+        const blob = await res.blob();
+        const href = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = href;
+        a.download = `black-swamp-totes-financials-${from}_to_${to}.csv`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(href);
+      } catch (e) {
+        csvErr.textContent = e.message || 'Could not download the CSV.';
+        csvErr.hidden = false;
+      }
+    });
+
+    // Default to the current month.
+    const tm = periodRange('thismonth');
+    load(tm.from, tm.to, 'This month');
   }
 
   // ── Settings (admin) ─────────────────────────────────────────────────────

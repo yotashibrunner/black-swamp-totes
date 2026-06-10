@@ -158,6 +158,28 @@ async function getSavedPaymentDetails(session) {
   return { customerId, paymentMethodId };
 }
 
+// Resolve the charge id + the ACTUAL processing fee for a payment intent, from
+// the charge's balance transaction. Returns { chargeId, feeCents } (either may
+// be null when Stripe is unconfigured or the data isn't available yet).
+async function getChargeDetails(paymentIntentId) {
+  const stripe = getClient();
+  if (!stripe || !paymentIntentId) return { chargeId: null, feeCents: null };
+  try {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['latest_charge.balance_transaction'],
+    });
+    const charge = pi && pi.latest_charge;
+    if (!charge) return { chargeId: null, feeCents: null };
+    if (typeof charge === 'string') return { chargeId: charge, feeCents: null };
+    const bt = charge.balance_transaction;
+    const feeCents = bt && typeof bt === 'object' && Number.isFinite(bt.fee) ? bt.fee : null;
+    return { chargeId: charge.id || null, feeCents };
+  } catch (err) {
+    console.error('[stripe] getChargeDetails failed:', err.message);
+    return { chargeId: null, feeCents: null };
+  }
+}
+
 // Refund part or all of a captured payment (deposit return). Returns the Stripe
 // refund object.
 async function refund({ paymentIntentId, amountCents }) {
@@ -226,6 +248,6 @@ function constructEvent(rawBody, signature) {
 }
 
 module.exports = {
-  isConfigured, createCheckoutSession, getSavedPaymentDetails,
+  isConfigured, createCheckoutSession, getSavedPaymentDetails, getChargeDetails,
   refund, chargeCardOnFile, createPaymentLink, constructEvent,
 };

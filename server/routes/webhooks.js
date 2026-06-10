@@ -70,6 +70,8 @@ router.post('/stripe', async (req, res) => {
       // payment method so we can later refund a deposit / charge the card on file.
       const depositCents = Number(session.metadata && session.metadata.deposit_cents) || 0;
       const { customerId, paymentMethodId } = await stripeSvc.getSavedPaymentDetails(session);
+      // Real charge id + processing fee (for true net revenue), best-effort.
+      const { chargeId, feeCents } = await stripeSvc.getChargeDetails(session.payment_intent);
 
       const booking = await bookingSvc.markPaidBySession(session.id, {
         paymentIntentId: session.payment_intent,
@@ -78,6 +80,8 @@ router.post('/stripe', async (req, res) => {
         customerId,
         paymentMethodId,
         depositCents,
+        chargeId,
+        feeCents,
       });
       if (!booking) {
         console.warn(`[webhook] no pending booking for session ${session.id} (already paid or unknown).`);

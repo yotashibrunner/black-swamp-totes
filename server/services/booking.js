@@ -14,6 +14,7 @@ const { OCCUPYING_STATUSES } = require('./availability');
 const { buildAgreement, toPlainText, CONTRACT_VERSION } = require('./contract');
 const { parseDateOnly, addDays, todayUTC, toDateOnly } = require('../utils/date');
 const { refCode } = require('../utils/ref-code');
+const { calcTax } = require('../utils/money');
 
 // Statuses that commit physical bins (count toward the global inventory cap and
 // the demand tracker). A booking holds bins from creation through pickup.
@@ -149,8 +150,9 @@ async function createBooking(input) {
   // the client); throws a tagged error if a code is given but invalid.
   let couponId = null;
   let discountCents = 0;
+  let couponFreeDelivery = false;
   if (input.coupon_code) {
-    ({ couponId, discountCents } = await couponsSvc.resolveForBooking({
+    ({ couponId, discountCents, freeDelivery: couponFreeDelivery } = await couponsSvc.resolveForBooking({
       code: input.coupon_code,
       trailerId: trailer.id,
       baseAmountCents: quote.base_cents,
@@ -170,11 +172,23 @@ async function createBooking(input) {
     studentDiscountApplied = true;
     couponId = null;
     discountCents = 0;
+    couponFreeDelivery = false;
   }
   const studentDiscountFinal = studentDiscountApplied ? studentDiscountCents : 0;
   const appliedDiscount = studentDiscountApplied ? studentDiscountFinal : discountCents;
 
-  const totalCents = Math.max(0, quote.total_cents + deliveryFee - appliedDiscount);
+  // Sales tax is charged on the POST-discount taxable base (what the customer
+  // actually pays), per Ohio. A percentage/flat code reduces the taxable base; a
+  // free_delivery code reduces the (untaxed) delivery fee instead, so it must
+  // NOT shrink the taxable base. Tax is recomputed here at the booking's rate
+  // rather than reusing quote.tax_cents (which was computed pre-discount).
+  const discountOnDelivery = !studentDiscountApplied && couponFreeDelivery;
+  const baseDiscount = discountOnDelivery ? 0 : appliedDiscount;
+  const deliveryDiscount = discountOnDelivery ? Math.min(deliveryFee, appliedDiscount) : 0;
+  const taxRate = quote.tax_rate;
+  const taxableBaseCents = Math.max(0, quote.base_cents - baseDiscount);
+  const taxCents = calcTax(taxableBaseCents, taxRate);
+  const totalCents = Math.max(0, taxableBaseCents + taxCents + (deliveryFee - deliveryDiscount));
 
   const client = await pool.connect();
   try {
@@ -240,14 +254,17 @@ async function createBooking(input) {
               tire_count, base_amount_cents, extra_charges_cents, tax_cents, total_cents,
               customer_notes, status, fulfillment, delivery_address, delivery_fee_cents,
               coupon_id, discount_applied_cents, bin_count, dolly_count, pickup_address,
-              student_discount_applied, discount_cents)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+              student_discount_applied, discount_cents,
+              tax_rate, discount_total_cents, payment_status)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,
+              $24,$25,'unpaid')
            RETURNING id, ref_code`,
           [ref, trailer.id, customerId, startAt.toISOString(), end.toISOString(), periodType, quantity,
-            tireCount, baseAmount, extraCharges, quote.tax_cents, totalCents,
+            tireCount, baseAmount, extraCharges, taxCents, totalCents,
             (input.notes || '').trim() || null, fulfillment, deliveryAddress, deliveryFee,
             couponId, discountCents, binCount, dollyCount, pickupAddress,
-            studentDiscountApplied, studentDiscountFinal]
+            studentDiscountApplied, studentDiscountFinal,
+            taxRate, appliedDiscount]
         );
         booking = res.rows[0];
       } catch (e) {
@@ -359,23 +376,29 @@ async function markPaidBySession(sessionId, opts = {}) {
   const {
     paymentIntentId = null, amountCents = 0, customerEmail = null,
     customerId = null, paymentMethodId = null, depositCents = 0,
+    chargeId = null, feeCents = null,
   } = opts;
   const deposit = Math.max(0, Math.round(depositCents) || 0);
   const { rows } = await pool.query(
     `UPDATE bookings SET
        status = 'paid',
+       payment_status = 'paid',
+       paid_at = COALESCE(paid_at, NOW()),
        -- Stripe's amount_total includes the refundable deposit; the deposit is
        -- not revenue, so amount_paid_cents tracks only the rental balance.
        amount_paid_cents = GREATEST(COALESCE($2,0) - $6, 0),
        stripe_payment_intent_id = COALESCE($3, stripe_payment_intent_id),
        stripe_customer_id = COALESCE($4, stripe_customer_id),
        stripe_payment_method_id = COALESCE($5, stripe_payment_method_id),
+       stripe_charge_id = COALESCE($7, stripe_charge_id),
+       stripe_fee_cents = COALESCE($8, stripe_fee_cents),
        deposit_paid_cents = CASE WHEN $6 > 0 THEN $6 ELSE deposit_paid_cents END,
        deposit_status = CASE WHEN $6 > 0 THEN 'held' ELSE deposit_status END,
        updated_at = NOW()
      WHERE stripe_session_id = $1 AND status <> 'paid'
      RETURNING id, customer_id`,
-    [sessionId, amountCents || 0, paymentIntentId || null, customerId, paymentMethodId, deposit]
+    [sessionId, amountCents || 0, paymentIntentId || null, customerId, paymentMethodId, deposit,
+      chargeId || null, feeCents == null ? null : Math.round(feeCents)]
   );
   if (!rows.length) return null; // unknown session or already paid
 

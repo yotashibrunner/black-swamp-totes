@@ -684,6 +684,16 @@ router.get('/reports/summary', reportAccess, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /reports/financials?from&to — gross, discounts, tax collected, Stripe
+// fees, refunds, net deposited for a date range (the Financials view + the
+// "tax collected for [month]" number). Defaults to the current month.
+router.get('/reports/financials', reportAccess, async (req, res, next) => {
+  try {
+    const { fromIso, toIso } = reportRange(req);
+    res.json({ from: fromIso, to: toIso, financials: await reportsSvc.financials(fromIso, toIso) });
+  } catch (err) { next(err); }
+});
+
 router.get('/reports/bookings', reportAccess, async (req, res, next) => {
   try {
     const { fromIso, toIso } = reportRange(req);
@@ -722,8 +732,8 @@ router.get('/reports/statement', reportAccess, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /reports/export.csv?from&to — admin only.
-router.get('/reports/export.csv', requireAdmin, async (req, res, next) => {
+// GET /reports/export.csv?from&to — full money breakdown for the CPA (admin + owner).
+router.get('/reports/export.csv', reportAccess, async (req, res, next) => {
   try {
     const { fromIso, toIso } = reportRange(req);
     const rows = await reportsSvc.bookingsBreakdown(fromIso, toIso);

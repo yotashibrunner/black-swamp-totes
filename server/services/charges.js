@@ -499,12 +499,20 @@ async function cancelBooking(ref) {
     if (!['paid', 'confirmed'].includes(cur.rows[0].status)) {
       throw badRequest('This booking can no longer be cancelled online.', 409);
     }
+    // payment_status reflects how much of the RENTAL was refunded (the deposit
+    // refund is tracked separately and is not revenue). refunded_cents lets
+    // financial reporting show revenue net of refunds.
+    const rentalPaymentStatus = rentalRefund <= 0
+      ? booking.payment_status || 'paid'
+      : (rentalRefund >= rentalPaid ? 'refunded' : 'partially_refunded');
     await client.query(
       `UPDATE bookings SET status='cancelled', updated_at=NOW(),
+          refunded_cents = $3,
+          payment_status = $4,
           deposit_status = CASE WHEN $2 > 0 THEN 'refunded' ELSE deposit_status END,
           deposit_refunded_cents = CASE WHEN $2 > 0 THEN $2 ELSE deposit_refunded_cents END
         WHERE id=$1`,
-      [booking.id, depositHeld]
+      [booking.id, depositHeld, rentalRefund, rentalPaymentStatus]
     );
     await client.query(
       `INSERT INTO audit_log (action, entity_type, entity_id, details)
