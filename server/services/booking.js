@@ -94,15 +94,9 @@ async function createBooking(input) {
   if (!trailer) throw badRequest('Trailer not found.', 404);
   if (trailer.status !== 'available') throw badRequest('This item is currently unavailable.', 409);
 
-  // The Rental Agreement / Liability Waiver must be accepted to book. We stamp
-  // the server's current waiver version (authoritative — we know what was live)
-  // along with the timestamp and the customer's IP, as the acceptance record.
-  const termsAccepted = input.terms_accepted === true || input.terms_accepted === 'true';
-  if (!termsAccepted) {
-    throw badRequest('You must agree to the Rental Agreement and Liability Waiver to book.');
-  }
-  const termsVersion = config.termsVersion;
-  const termsIp = (input.terms_ip || '').toString().slice(0, 64) || null;
+  // Agreement acceptance is captured ONLY at the e-signature step (signBooking),
+  // which records the signature, name, IP, user-agent, and the immutable contract
+  // snapshot. Booking creation no longer collects or requires terms acceptance.
 
   const { start, end, periodType, quantity } = resolveWindow(trailer, input);
 
@@ -261,17 +255,16 @@ async function createBooking(input) {
               customer_notes, status, fulfillment, delivery_address, delivery_fee_cents,
               coupon_id, discount_applied_cents, bin_count, dolly_count, pickup_address,
               student_discount_applied, discount_cents,
-              tax_rate, discount_total_cents, payment_status,
-              terms_accepted, terms_accepted_at, terms_version, terms_accepted_ip)
+              tax_rate, discount_total_cents, payment_status)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,
-              $24,$25,'unpaid',true,NOW(),$26,$27)
+              $24,$25,'unpaid')
            RETURNING id, ref_code`,
           [ref, trailer.id, customerId, startAt.toISOString(), end.toISOString(), periodType, quantity,
             tireCount, baseAmount, extraCharges, taxCents, totalCents,
             (input.notes || '').trim() || null, fulfillment, deliveryAddress, deliveryFee,
             couponId, couponDiscountStored, binCount, dollyCount, pickupAddress,
             studentDiscountApplied, studentDiscountFinal,
-            taxRate, appliedDiscount, termsVersion, termsIp]
+            taxRate, appliedDiscount]
         );
         booking = res.rows[0];
       } catch (e) {

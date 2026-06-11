@@ -312,6 +312,9 @@ button.cal-day { font: inherit; appearance: none; -webkit-appearance: none; padd
   color: var(--ink-dim); padding: 7px 0;
 }
 .quote .qrow span:last-child { color: var(--ink); text-align: right; }
+/* .qrow's display:flex would override the [hidden] attribute; force hidden
+   summary rows (discount, student, delivery) to stay hidden. */
+.quote .qrow[hidden] { display: none !important; }
 .quote .qtotal {
   display: flex; justify-content: space-between; align-items: end;
   margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--line-2);

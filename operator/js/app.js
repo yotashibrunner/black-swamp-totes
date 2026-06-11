@@ -596,17 +596,20 @@
         opRow.hidden = true;
       }
 
-      // Liability-waiver acceptance — proof, with version + timestamp + IP, for
-      // any future dispute.
+      // Agreement acceptance — the e-signature is the single source of truth
+      // (name + timestamp + IP), for any future dispute. (.kv > div sets
+      // display:flex, which overrides [hidden] — force display too.)
       const termsRow = root.querySelector('[data-terms-row]');
-      if (booking.terms_accepted) {
-        const when = booking.terms_accepted_at ? fmtDateTime(booking.terms_accepted_at) : 'time not recorded';
-        const ver = booking.terms_version ? ` (${booking.terms_version})` : '';
-        const ip = booking.terms_accepted_ip ? ` · IP ${booking.terms_accepted_ip}` : '';
-        root.querySelector('[data-terms]').textContent = `✓ Agreed${ver} on ${when}${ip}`;
+      if (booking.contract_signed_at) {
+        const by = booking.contract_signed_name ? ` by ${booking.contract_signed_name}` : '';
+        const ip = booking.contract_signed_ip ? ` · IP ${booking.contract_signed_ip}` : '';
+        root.querySelector('[data-terms]').textContent =
+          `✓ Signed${by} on ${fmtDateTime(booking.contract_signed_at)}${ip}`;
         termsRow.hidden = false;
+        termsRow.style.display = '';
       } else {
         termsRow.hidden = true;
+        termsRow.style.display = 'none';
       }
 
       const contractBtn = root.querySelector('[data-contract]');
