@@ -138,7 +138,17 @@
           btn.textContent = 'Redirecting to payment…';
           var coRes = await fetch('/api/bookings/' + BOOKING_ID + '/checkout', { method: 'POST' });
           var coData = await coRes.json().catch(function () { return {}; });
-          if (coRes.ok && coData.url) { window.location.href = coData.url; return; }
+          if (coRes.ok && coData.url) {
+            <% if (typeof facebookPixelId !== 'undefined' && facebookPixelId) { %>
+            // Meta Pixel — AddPaymentInfo (customer is heading to the payment step)
+            if (window.fbq) fbq('track', 'AddPaymentInfo', {
+              content_name: <%- JSON.stringify(booking.trailer_name || booking.ref_code) %>,
+              value: <%= (booking.total_cents / 100).toFixed(2) %>,
+              currency: 'USD'
+            });
+            <% } %>
+            window.location.href = coData.url; return;
+          }
           if (coData.already_paid) { window.location.href = coData.redirect; return; }
 
           // Payments not configured yet (or unavailable): booking is signed.

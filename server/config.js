@@ -98,9 +98,10 @@ const config = {
 
   // ── Marketing analytics (optional, env-gated) ───────────────────────
   // When unset, no analytics scripts are emitted (silent). GA4 measurement ID
-  // (G-XXXXXXXXXX) and Meta/Facebook Pixel ID.
+  // (G-XXXXXXXXXX) and the Meta (Facebook) Pixel ID. META_PIXEL_ID is the
+  // preferred var; FACEBOOK_PIXEL_ID is accepted as a legacy fallback.
   googleAnalyticsId: process.env.GOOGLE_ANALYTICS_ID || '',
-  facebookPixelId: process.env.FACEBOOK_PIXEL_ID || '',
+  facebookPixelId: process.env.META_PIXEL_ID || process.env.FACEBOOK_PIXEL_ID || '',
 
   // Direct Google review link for the post-return review request (cron). When
   // unset, the review request is skipped.

@@ -180,5 +180,18 @@
       update();
     })();
   </script>
+
+  <% if (typeof facebookPixelId !== 'undefined' && facebookPixelId) { %>
+  <!-- Meta Pixel — ViewContent (pricing page) -->
+  <script>
+    if (window.fbq) fbq('track', 'ViewContent', {
+      content_name: <%- JSON.stringify(trailer.name) %>,
+      content_type: 'product',
+      content_ids: [<%- JSON.stringify(trailer.slug) %>],
+      value: <%= ((trailer.flat_drop_off_cents || 0) / 100).toFixed(2) %>,
+      currency: 'USD'
+    });
+  </script>
+  <% } %>
 </body>
 </html>

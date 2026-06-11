@@ -102,8 +102,28 @@
   <%- include('partials/footer') %>
 
   <% if (booking.status === 'paid' && typeof facebookPixelId !== 'undefined' && facebookPixelId) { %>
+  <!-- Meta Pixel — Purchase. Fired once per booking; a refresh of the
+       confirmation page won't re-fire it (guarded by ref in localStorage). -->
   <script>
-    if (window.fbq) fbq('track', 'Purchase', { value: <%= (booking.total_cents / 100).toFixed(2) %>, currency: 'USD' });
+    (function () {
+      var key = 'bst_purchase_fired_' + <%- JSON.stringify(booking.ref_code) %>;
+      function firePurchase() {
+        if (window.fbq) fbq('track', 'Purchase', {
+          value: <%= (booking.total_cents / 100).toFixed(2) %>,
+          currency: 'USD',
+          content_name: <%- JSON.stringify(booking.trailer_name || booking.ref_code) %>,
+          content_ids: [<%- JSON.stringify(booking.ref_code) %>]
+        });
+      }
+      try {
+        if (localStorage.getItem(key)) return;   // already counted this booking
+        firePurchase();
+        localStorage.setItem(key, '1');
+      } catch (e) {
+        // localStorage blocked (private mode): still fire so a real purchase isn't lost.
+        firePurchase();
+      }
+    })();
   </script>
   <% } %>
 </body>

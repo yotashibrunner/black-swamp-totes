@@ -202,5 +202,18 @@
   </script>
 
   <%- include('partials/footer') %>
+
+  <% if (typeof facebookPixelId !== 'undefined' && facebookPixelId) { %>
+  <!-- Meta Pixel — ViewContent (package page) -->
+  <script>
+    if (window.fbq) fbq('track', 'ViewContent', {
+      content_name: <%- JSON.stringify(trailer.name) %>,
+      content_type: 'product',
+      content_ids: [<%- JSON.stringify(trailer.slug) %>],
+      value: <%= ((trailer.daily_rate || trailer.weekly_rate || trailer.hourly_rate || trailer.monthly_rate || trailer.flat_drop_off_cents || 0) / 100).toFixed(2) %>,
+      currency: 'USD'
+    });
+  </script>
+  <% } %>
 </body>
 </html>

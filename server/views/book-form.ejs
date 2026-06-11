@@ -357,5 +357,17 @@
       });
     })();
   </script>
+
+  <% if (typeof facebookPixelId !== 'undefined' && facebookPixelId) { %>
+  <!-- Meta Pixel — InitiateCheckout (customer started the booking flow) -->
+  <script>
+    if (window.fbq) fbq('track', 'InitiateCheckout', {
+      content_name: <%- JSON.stringify(trailer.name) %>,
+      content_ids: [<%- JSON.stringify(trailer.slug) %>],
+      value: <%= (quote.total_cents / 100).toFixed(2) %>,
+      currency: 'USD'
+    });
+  </script>
+  <% } %>
 </body>
 </html>
