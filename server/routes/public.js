@@ -49,6 +49,21 @@ router.get('/terms', (req, res) => {
   res.render('terms', { updated: todayLong(), supportEmail: config.supportEmail });
 });
 
+// GET /rental-agreement — standalone Rental Agreement / Liability Waiver, linked
+// from the required acceptance checkbox on the booking form. Versioned via
+// config.termsVersion (the value stamped on each booking). Aliased at /waiver
+// and /liability-waiver.
+function renderRentalAgreement(req, res) {
+  res.render('rental-agreement', {
+    updated: todayLong(),
+    termsVersion: config.termsVersion,
+    supportEmail: config.supportEmail,
+  });
+}
+router.get('/rental-agreement', renderRentalAgreement);
+router.get('/waiver', renderRentalAgreement);
+router.get('/liability-waiver', renderRentalAgreement);
+
 // GET /my-booking — customer self-service lookup + cancel.
 router.get('/my-booking', (req, res) => {
   res.render('my-booking', { ref: (req.query.ref || '').toString().trim() });
@@ -127,6 +142,7 @@ router.get('/book/new', async (req, res, next) => {
     res.render('book-form', {
       trailer, quote, selection, isDumpster, isBins, fmt: formatCents,
       deliveryFeeCents: DELIVERY_FEE_CENTS,
+      termsVersion: config.termsVersion,
     });
   } catch (err) {
     next(err);

@@ -192,7 +192,9 @@ function originOf(req) {
 // POST /api/bookings — create a pending booking, return { id, ref_code }.
 router.post('/bookings', bookingLimiter, async (req, res, next) => {
   try {
-    const result = await bookingSvc.createBooking(req.body || {});
+    // Capture the customer's IP at terms acceptance (dispute evidence). trust
+    // proxy is set, so req.ip is the real client address behind Railway's proxy.
+    const result = await bookingSvc.createBooking({ ...(req.body || {}), terms_ip: req.ip });
     res.status(201).json(result);
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });

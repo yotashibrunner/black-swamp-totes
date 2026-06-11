@@ -110,6 +110,13 @@ const config = {
   // when committed bins on any overlapping day would exceed this. Default keeps
   // a 10-bin buffer below the ~100 physical bins for turnaround/cleaning.
   totalInventory: parseInt(process.env.TOTAL_INVENTORY, 10) || 90,
+
+  // ── Rental Agreement / Liability Waiver versioning ──────────────────
+  // Stamped on every booking when the customer ticks the "I agree" box, so we
+  // always know which version of the waiver a given customer accepted. BUMP
+  // THIS (e.g. 'v1.1-2026-09') whenever the waiver language at /rental-agreement
+  // materially changes, and keep the old text reproducible.
+  termsVersion: process.env.TERMS_VERSION || 'v1.0-2026-06',
 };
 
 config.isProduction = config.env === 'production';

@@ -148,10 +148,15 @@
           <div class="step">Notes</div>
           <div class="field-row"><div><label class="fl" for="notes">Notes (optional)</label><input type="text" id="notes" placeholder="Gate code, contactless drop, anything we should know?" /></div></div>
 
+          <label class="tire-ack" id="termsAck" style="color:var(--ink);align-items:flex-start;margin-top:6px;">
+            <input type="checkbox" id="agreeTerms" required aria-required="true" />
+            <span>I have read and agree to the <a href="/rental-agreement" target="_blank" rel="noopener"><strong>Rental Agreement and Liability Waiver</strong></a><span class="req" aria-hidden="true"> *</span>.</span>
+          </label>
+
           <button class="btn btn-primary" id="continueBtn" type="submit">Continue to Sign →</button>
           <p class="err" id="err" role="alert" aria-live="assertive"></p>
           <p class="qnote">Next: review &amp; e-sign the rental agreement, then pay the balance securely.</p>
-          <p class="qnote">By booking you agree to our <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
+          <p class="qnote">You also agree to our <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
         </form>
       </aside>
     </div>
@@ -171,6 +176,7 @@
       var IS_DUMPSTER = <%= isDumpster ? 'true' : 'false' %>;
       var IS_CUSTOM = <%= (isBins && trailer.is_custom) ? 'true' : 'false' %>;
       var TRAILER_ID = '<%= trailer.id %>';
+      var TERMS_VERSION = '<%= termsVersion %>';
       var DELIVERY_FEE = <%= deliveryFeeCents %>;
       var WEEKS = <%= quote.weeks || quote.quantity || 1 %>;
       var EXTRA_DAYS = <%= quote.extra_days || 0 %>;
@@ -302,12 +308,19 @@
         var email = el('email').value.trim();
         if (!name || !phone) { el('err').textContent = 'Name and phone are required.'; return; }
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { el('err').textContent = 'A valid email is required — we send your confirmation and receipt there.'; return; }
+        if (!el('agreeTerms').checked) {
+          el('err').textContent = 'Please read and agree to the Rental Agreement and Liability Waiver to continue.';
+          el('agreeTerms').focus();
+          return;
+        }
 
         var body = Object.assign({}, sel, {
           customer: { name: name, phone: phone, email: email },
           notes: el('notes').value.trim(),
           start_time: el('startTime').value || null,
           coupon_code: coupon ? coupon.code : undefined,
+          terms_accepted: true,
+          terms_version: TERMS_VERSION,
         });
 
         if (IS_BINS) {

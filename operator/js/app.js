@@ -568,6 +568,19 @@
         opRow.hidden = true;
       }
 
+      // Liability-waiver acceptance — proof, with version + timestamp + IP, for
+      // any future dispute.
+      const termsRow = root.querySelector('[data-terms-row]');
+      if (booking.terms_accepted) {
+        const when = booking.terms_accepted_at ? fmtDateTime(booking.terms_accepted_at) : 'time not recorded';
+        const ver = booking.terms_version ? ` (${booking.terms_version})` : '';
+        const ip = booking.terms_accepted_ip ? ` · IP ${booking.terms_accepted_ip}` : '';
+        root.querySelector('[data-terms]').textContent = `✓ Agreed${ver} on ${when}${ip}`;
+        termsRow.hidden = false;
+      } else {
+        termsRow.hidden = true;
+      }
+
       const contractBtn = root.querySelector('[data-contract]');
       if (booking.contract_url) {
         contractBtn.href = booking.contract_url;
