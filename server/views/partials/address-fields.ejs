@@ -1,0 +1,42 @@
+<%
+  // Structured US shipping-address group, so device autofill works (no API).
+  // Locals:
+  //   idPrefix   – element-id prefix, e.g. 'del' → del_line1, del_city, …  (JS reads these)
+  //   namePrefix – name-attr prefix: '' for the primary address (name="address_line1"),
+  //                'pickup_' for the pickup address (name="pickup_address_line1")
+  //   acPrefix   – autocomplete section token prefix: '' or 'section-pickup '
+  //   required   – mark street/city/zip required (advisory; the form is novalidate)
+  //   line1Label – label text for the street line
+  var idP = idPrefix;
+  var nP = (typeof namePrefix !== 'undefined' && namePrefix) ? namePrefix : '';
+  var acP = (typeof acPrefix !== 'undefined' && acPrefix) ? acPrefix : '';
+  var req = !!required;
+  var star = req ? '<span class="req" aria-hidden="true">*</span>' : '<span class="dim">(optional)</span>';
+  var US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+%>
+<fieldset class="addr-group" style="border:0;padding:0;margin:0;min-width:0;">
+  <div class="field-row"><div>
+    <label class="fl" for="<%= idP %>_line1"><%= typeof line1Label !== 'undefined' ? line1Label : 'Street address' %> <%- star %></label>
+    <input type="text" id="<%= idP %>_line1" name="<%= nP %>address_line1" autocomplete="<%= acP %>address-line1" <%- req ? 'required aria-required="true"' : '' %> placeholder="123 Main St" />
+  </div></div>
+  <div class="field-row" style="margin-top:12px;"><div>
+    <label class="fl" for="<%= idP %>_line2">Apt / Unit <span class="dim">(optional)</span></label>
+    <input type="text" id="<%= idP %>_line2" name="<%= nP %>address_line2" autocomplete="<%= acP %>address-line2" placeholder="Apt, suite, unit" />
+  </div></div>
+  <div class="field-row two" style="margin-top:12px;">
+    <div>
+      <label class="fl" for="<%= idP %>_city">City <%- req ? '<span class="req" aria-hidden="true">*</span>' : '' %></label>
+      <input type="text" id="<%= idP %>_city" name="<%= nP %>address_city" autocomplete="<%= acP %>address-level2" <%= req ? 'required' : '' %> placeholder="Toledo" />
+    </div>
+    <div>
+      <label class="fl" for="<%= idP %>_state">State</label>
+      <select id="<%= idP %>_state" name="<%= nP %>address_state" autocomplete="<%= acP %>address-level1">
+        <% US_STATES.forEach(function (s) { %><option value="<%= s %>"<%= s === 'OH' ? ' selected' : '' %>><%= s %></option><% }); %>
+      </select>
+    </div>
+  </div>
+  <div class="field-row" style="margin-top:12px;"><div style="max-width:220px;">
+    <label class="fl" for="<%= idP %>_zip">ZIP <%- req ? '<span class="req" aria-hidden="true">*</span>' : '' %></label>
+    <input type="text" id="<%= idP %>_zip" name="<%= nP %>address_zip" autocomplete="<%= acP %>postal-code" inputmode="numeric" pattern="\d{5}(-\d{4})?" placeholder="43615" />
+  </div></div>
+</fieldset>

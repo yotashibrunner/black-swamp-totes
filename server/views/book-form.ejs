@@ -120,21 +120,13 @@
             </div>
           </div>
 <% if (isBins) { %>
-          <div class="step">Delivery</div>
+          <div class="step">Delivery address</div>
           <p class="qnote" style="margin:0 0 10px;">We deliver throughout Toledo, Bowling Green, Maumee, Perrysburg, Sylvania, Oregon, and Northwood. Not on the list? Call (419) 262-2837 — we may be able to help.</p>
-          <div class="field-row">
-            <div>
-              <label class="fl" for="deliveryAddr">Where should we deliver your bins? <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span></label>
-              <input type="text" id="deliveryAddr" autocomplete="street-address" placeholder="123 Main St, Toledo, OH 43615" required aria-required="true" />
-            </div>
-          </div>
-          <div class="field-row" style="margin-top:12px;">
-            <div>
-              <label class="fl" for="pickupAddr">Where should we pick up from? <span class="dim">(optional)</span></label>
-              <input type="text" id="pickupAddr" autocomplete="off" placeholder="Leave blank if same as delivery" />
-              <p class="qnote" style="margin-top:6px;">This can be your new address if you're moving — we'll come to you. You can update it later from <a href="/my-booking">Manage a Booking</a> or by texting us when you're ready for pickup.</p>
-            </div>
-          </div>
+          <%- include('partials/address-fields', { idPrefix: 'del', required: true, line1Label: 'Where should we deliver your bins?' }) %>
+
+          <div class="step" style="margin-top:18px;">Pickup address <span class="dim" style="text-transform:none;font-weight:400;">(optional — leave blank if same as delivery)</span></div>
+          <p class="qnote" style="margin:0 0 10px;">If you're moving, this can be your new address — we'll come to you. You can update it later from <a href="/my-booking">Manage a Booking</a> or by texting us when you're ready for pickup.</p>
+          <%- include('partials/address-fields', { idPrefix: 'pick', namePrefix: 'pickup_', acPrefix: 'section-pickup ', required: false, line1Label: 'Pickup street address' }) %>
 <% } else if (!isDumpster) { %>
           <div class="step">Fulfillment</div>
           <div role="radiogroup" aria-label="Fulfillment" style="display:flex;flex-direction:column;gap:8px;">
@@ -142,7 +134,7 @@
             <label class="tire-ack" style="color:var(--ink);"><input type="radio" name="fulfillment" value="delivery" /> <span>Delivery — <strong><%= fmt(deliveryFeeCents) %></strong></span></label>
           </div>
           <div id="addrRow" hidden style="margin-top:12px;">
-            <div class="field-row"><div><label class="fl" for="deliveryAddr">Delivery address <span class="req" aria-hidden="true">*</span></label><input type="text" id="deliveryAddr" autocomplete="street-address" placeholder="123 Main St, Toledo, OH 43614" /></div></div>
+            <%- include('partials/address-fields', { idPrefix: 'del', required: true, line1Label: 'Delivery street address' }) %>
           </div>
 <% } %>
           <div class="step">Notes</div>
@@ -306,6 +298,24 @@
         refreshQuote();
       });
 
+      // Compose the structured address fields (idPrefix_line1/_line2/_city/_state/_zip)
+      // into the single delivery_address/pickup_address string the backend already
+      // stores. Returns { value } or { error }. For an optional group, a fully
+      // blank group returns { value: null }.
+      function composeAddress(idPrefix, required) {
+        var get = function (suf) { var elx = el(idPrefix + '_' + suf); return elx ? elx.value.trim() : ''; };
+        var line1 = get('line1'), line2 = get('line2'), city = get('city'), state = get('state'), zip = get('zip');
+        // State is a <select> that always has a value (default OH), so it doesn't
+        // count toward "did the user enter anything" for an optional group.
+        if (!required && !line1 && !line2 && !city && !zip) return { value: null };
+        if (!line1 || !city || !state || !zip) return { error: 'Enter a street address, city, state, and ZIP.' };
+        if (!/^\d{5}(-\d{4})?$/.test(zip)) return { error: 'Enter a valid ZIP code (e.g. 43615 or 43615-1234).' };
+        var parts = [line1];
+        if (line2) parts.push(line2);
+        parts.push(city);
+        return { value: parts.join(', ') + ', ' + state + ' ' + zip };
+      }
+
       form.addEventListener('submit', async function (e) {
         e.preventDefault();
         el('err').textContent = '';
@@ -323,19 +333,21 @@
         });
 
         if (IS_BINS) {
-          var dAddr = el('deliveryAddr').value.trim();
-          if (!dAddr) { el('err').textContent = 'Enter a delivery address — where should we bring your bins?'; return; }
+          var del = composeAddress('del', true);
+          if (del.error) { el('err').textContent = del.error; el('del_line1').focus(); return; }
           body.fulfillment = 'delivery';
-          body.delivery_address = dAddr;
-          body.pickup_address = el('pickupAddr').value.trim() || null;
+          body.delivery_address = del.value;
+          var pick = composeAddress('pick', false); // optional — blank = same as delivery
+          if (pick.error) { el('err').textContent = 'Pickup address: ' + pick.error; el('pick_line1').focus(); return; }
+          body.pickup_address = pick.value || null;
           if (IS_CUSTOM) body.bin_quantity = Math.max(10, parseInt(el('binQty').value, 10) || 10);
         } else {
           var ful = (document.querySelector('input[name="fulfillment"]:checked') || {}).value || 'pickup';
           body.fulfillment = ful;
           if (ful === 'delivery') {
-            var addr = (el('deliveryAddr') || {}).value ? el('deliveryAddr').value.trim() : '';
-            if (!addr) { el('err').textContent = 'Enter a delivery address, or choose customer pickup.'; return; }
-            body.delivery_address = addr;
+            var d = composeAddress('del', true);
+            if (d.error) { el('err').textContent = d.error; el('del_line1').focus(); return; }
+            body.delivery_address = d.value;
           }
         }
 
