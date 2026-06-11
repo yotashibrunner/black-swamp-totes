@@ -274,8 +274,9 @@ router.post('/bookings/:id/checkout', async (req, res, next) => {
     if (booking.status === 'expired' || booking.status === 'cancelled') {
       return res.status(409).json({ error: 'This booking has expired — please start a new booking.' });
     }
-    // Must be signed first (status advances to 'pending_payment' on signature).
-    if (!booking.contract_signed_at || booking.status !== 'pending_payment') {
+    // Must be signed first (status advances to 'pending_payment' on signature;
+    // 'signed' is the legacy pre-fix value, still payable).
+    if (!booking.contract_signed_at || !['pending_payment', 'signed'].includes(booking.status)) {
       return res.status(409).json({ error: 'Please sign the rental agreement before paying.' });
     }
 

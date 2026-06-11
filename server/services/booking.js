@@ -716,7 +716,7 @@ async function expireAbandoned(olderThanMinutes = 120) {
     `UPDATE bookings
         SET status = 'expired', updated_at = NOW()
       WHERE payment_status = 'unpaid'
-        AND status IN ('pending', 'pending_payment')
+        AND status IN ('pending', 'pending_payment', 'signed')
         AND created_at < NOW() - ($1 || ' minutes')::interval`,
     [String(minutes)]
   );

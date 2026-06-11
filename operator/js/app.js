@@ -210,9 +210,11 @@
       if (li) li.classList.add('booking-awaiting-pay');
     }
 
-    // Customer texted READY → green pill (only meaningful once out/paid).
+    // Customer texted READY → green pill. Show ONLY when the customer actually
+    // requested pickup AND the booking is paid — an unpaid booking is never a
+    // live order, so it can never read as ready for pickup.
     const readyEl = node.querySelector('[data-ready]');
-    if (readyEl && b.pickup_requested_at) readyEl.hidden = false;
+    if (readyEl && b.pickup_requested_at && b.payment_status === 'paid') readyEl.hidden = false;
 
     // PICKUP / DELIVERY badge (+ address line for deliveries).
     const isDelivery = b.fulfillment === 'delivery';
@@ -530,7 +532,7 @@
       // Pickup-confirmation status (customer texted READY).
       const pickupReqRow = root.querySelector('[data-pickupreq-row]');
       if (pickupReqRow) {
-        if (booking.pickup_requested_at && booking.status === 'out') {
+        if (booking.pickup_requested_at && booking.status === 'out' && booking.payment_status === 'paid') {
           pickupReqRow.hidden = false;
           root.querySelector('[data-pickupreq]').textContent =
             `✓ Customer confirmed READY (${fmtDateTime(booking.pickup_requested_at)})`;
