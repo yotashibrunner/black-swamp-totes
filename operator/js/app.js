@@ -210,11 +210,17 @@
       if (li) li.classList.add('booking-awaiting-pay');
     }
 
-    // Customer texted READY → green pill. Show ONLY when the customer actually
-    // requested pickup AND the booking is paid — an unpaid booking is never a
-    // live order, so it can never read as ready for pickup.
+    // Customer texted READY → green pill. Show ONLY when pickup was requested
+    // AND the booking is paid — an unpaid booking is never a live order. Must
+    // hide explicitly: .badge sets display:inline-block, which overrides the
+    // [hidden] attribute, so toggling `hidden` alone leaves the pill visible.
+    // Force display:none too.
     const readyEl = node.querySelector('[data-ready]');
-    if (readyEl && b.pickup_requested_at && b.payment_status === 'paid') readyEl.hidden = false;
+    if (readyEl) {
+      const ready = !!(b.pickup_requested_at && b.payment_status === 'paid');
+      readyEl.hidden = !ready;
+      readyEl.style.display = ready ? '' : 'none';
+    }
 
     // PICKUP / DELIVERY badge (+ address line for deliveries).
     const isDelivery = b.fulfillment === 'delivery';
@@ -529,14 +535,17 @@
         } else { pickupAddrRow.hidden = true; }
       }
 
-      // Pickup-confirmation status (customer texted READY).
+      // Pickup-confirmation status (customer texted READY). .kv > div sets
+      // display:flex, which overrides [hidden] — force display:none when hidden.
       const pickupReqRow = root.querySelector('[data-pickupreq-row]');
       if (pickupReqRow) {
-        if (booking.pickup_requested_at && booking.status === 'out' && booking.payment_status === 'paid') {
-          pickupReqRow.hidden = false;
+        const ready = !!(booking.pickup_requested_at && booking.status === 'out' && booking.payment_status === 'paid');
+        pickupReqRow.hidden = !ready;
+        pickupReqRow.style.display = ready ? '' : 'none';
+        if (ready) {
           root.querySelector('[data-pickupreq]').textContent =
             `✓ Customer confirmed READY (${fmtDateTime(booking.pickup_requested_at)})`;
-        } else { pickupReqRow.hidden = true; }
+        }
       }
 
       const deliverRow = root.querySelector('[data-deliver-row]');

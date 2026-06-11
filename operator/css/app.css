@@ -653,6 +653,9 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 
 /* ── Pickup-requested (customer texted READY) ───────────────────────── */
 .badge-ready { background: rgba(34,197,94,.22); color: #6fe39a; font-weight: 700; }
+/* .badge sets display:inline-block, which would override the [hidden] attribute.
+   Force hidden ready-pills to stay hidden regardless of the .badge rule. */
+[data-ready][hidden] { display: none !important; }
 .sec-ready { border-left: 3px solid var(--accent); }
 .sec-ready .sec-title { color: #6fe39a; }
 
