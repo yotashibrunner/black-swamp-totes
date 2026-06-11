@@ -147,15 +147,25 @@
   // ── Booking status badges ────────────────────────────────────────────────
   const BOOKING_STATUS = {
     pending: { label: 'Pending', cls: 'badge-warn' },
-    signed: { label: 'Signed', cls: 'badge-warn' },
+    pending_payment: { label: 'Awaiting Payment', cls: 'badge-warn' },
+    signed: { label: 'Signed', cls: 'badge-warn' }, // legacy rows
     paid: { label: 'Paid', cls: 'badge-ok' },
     confirmed: { label: 'Confirmed', cls: 'badge-ok' },
     out: { label: 'Out', cls: 'badge-out' },
     returned: { label: 'Returned', cls: 'badge-done' },
     cancelled: { label: 'Cancelled', cls: 'badge-oos' },
+    expired: { label: 'Expired', cls: 'badge-oos' },
   };
 
-  function paintBookingBadge(el, status) {
+  // Paint the status badge. An unpaid booking is shown explicitly as a warning
+  // ("SIGNED · UNPAID" once signed, else "AWAITING PAYMENT") so it never reads
+  // as a fulfillable order, regardless of its lifecycle status.
+  function paintBookingBadge(el, status, b) {
+    if (b && b.awaiting_payment) {
+      el.textContent = b.signed_unpaid ? 'SIGNED · UNPAID' : 'AWAITING PAYMENT';
+      el.className = 'badge badge-warn';
+      return;
+    }
     const meta = BOOKING_STATUS[status] || { label: status, cls: '' };
     el.textContent = meta.label;
     el.className = `badge ${meta.cls}`;
@@ -191,9 +201,16 @@
     node.querySelector('[data-when]').textContent =
       fmtRange(b) + (b.time_fmt ? ` · ${b.time_fmt}` : '');
     node.querySelector('[data-phone]').textContent = b.customer_phone || '';
-    paintBookingBadge(node.querySelector('[data-badge]'), b.status);
+    paintBookingBadge(node.querySelector('[data-badge]'), b.status, b);
 
-    // Customer texted READY → green pill.
+    // Awaiting-payment rows are dimmed and flagged so they never read as
+    // deliverable orders.
+    if (b.awaiting_payment) {
+      const li = node.querySelector('.booking-row') || node.firstElementChild;
+      if (li) li.classList.add('booking-awaiting-pay');
+    }
+
+    // Customer texted READY → green pill (only meaningful once out/paid).
     const readyEl = node.querySelector('[data-ready]');
     if (readyEl && b.pickup_requested_at) readyEl.hidden = false;
 
@@ -468,7 +485,7 @@
 
     function paint() {
       root.querySelector('[data-ref]').textContent = booking.ref_code;
-      paintBookingBadge(root.querySelector('[data-badge]'), booking.status);
+      paintBookingBadge(root.querySelector('[data-badge]'), booking.status, booking);
       root.querySelector('[data-customer]').textContent = booking.customer_name || '—';
 
       const phone = booking.customer_phone || '';
@@ -621,7 +638,14 @@
         attrEl.hidden = true;
       }
 
-      if (booking.status === 'returned') {
+      doneEl.classList.remove('warn-note');
+      if (booking.awaiting_payment) {
+        doneEl.hidden = false;
+        doneEl.classList.add('warn-note');
+        doneEl.textContent = booking.signed_unpaid
+          ? '⚠ Signed but UNPAID — not a confirmed order. Not fulfillable until payment completes.'
+          : '⚠ Awaiting payment — not a confirmed order. Not fulfillable until payment completes.';
+      } else if (booking.status === 'returned') {
         doneEl.hidden = false;
         doneEl.textContent = isDelivery
           ? 'Retrieved — unit is available again.'
@@ -629,6 +653,9 @@
       } else if (booking.status === 'cancelled') {
         doneEl.hidden = false;
         doneEl.textContent = 'This booking was cancelled.';
+      } else if (booking.status === 'expired') {
+        doneEl.hidden = false;
+        doneEl.textContent = 'This booking expired unpaid and was released.';
       } else {
         doneEl.hidden = true;
       }

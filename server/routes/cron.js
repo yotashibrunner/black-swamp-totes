@@ -20,6 +20,7 @@ const { query } = require('../db');
 const config = require('../config');
 const smsSvc = require('../services/sms');
 const couponsSvc = require('../services/coupons');
+const bookingSvc = require('../services/booking');
 
 const BUSINESS_PHONE = '(419) 262-2837';
 
@@ -109,6 +110,16 @@ async function handleReminders(req, res, next) {
       console.error('[cron] deactivateExpired failed:', e.message);
     }
 
+    // JOB 5 — expire abandoned carts: unpaid bookings still in a pre-payment
+    // status after ~2h become 'expired', releasing any inventory hold and
+    // dropping out of every operator view. Idempotent.
+    let bookings_expired = 0;
+    try {
+      bookings_expired = await bookingSvc.expireAbandoned(120);
+    } catch (e) {
+      console.error('[cron] expireAbandoned failed:', e.message);
+    }
+
     return res.json({
       ok: true,
       ran_at: ranAt,
@@ -116,6 +127,7 @@ async function handleReminders(req, res, next) {
       overdue_notices,
       review_requests,
       codes_expired,
+      bookings_expired,
       twilio_active: smsSvc.isConfigured(),
     });
   } catch (err) {

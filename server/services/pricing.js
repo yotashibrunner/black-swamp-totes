@@ -164,4 +164,59 @@ async function computeQuote(trailer, input) {
   };
 }
 
-module.exports = { computeQuote, DELIVERY_FEE_CENTS };
+// Apply the single applicable discount to a base quote and compute the
+// post-discount tax + total. THE one source of truth for discounted pricing,
+// used by both the live quote (/api/quote, for display) and createBooking (the
+// booking-time authority) so the summary the customer sees always equals what
+// is charged and stored.
+//
+// Rules (must match the booking flow):
+//   - The .edu student discount (20% of base) and a promo/partner code do NOT
+//     stack; whichever is greater wins. Ties go to the code.
+//   - A percentage/flat code reduces the taxable base; a free_delivery code
+//     reduces the (untaxed) delivery fee instead.
+//   - Tax is charged on the POST-discount taxable base (Ohio).
+//
+// `quote` is the output of computeQuote (needs base_cents + tax_rate). Returns a
+// reconciled breakdown the callers map straight onto the stored columns.
+function priceWithDiscounts(quote, opts = {}) {
+  const base = Math.max(0, Number(quote.base_cents) || 0);
+  const taxRate = Number(quote.tax_rate) || 0;
+  const deliveryFeeCents = Math.max(0, Number(opts.deliveryFeeCents) || 0);
+  const couponDisc = Math.max(0, Number(opts.couponDiscountCents) || 0);
+  const couponFreeDelivery = !!opts.couponFreeDelivery;
+  const studentCandidate = opts.studentEligible ? Math.round(base * 0.20) : 0;
+
+  // Greater wins; tie → code. Student only applies when it strictly beats the code.
+  const studentApplied = studentCandidate > 0 && studentCandidate > couponDisc;
+  const couponApplied = !studentApplied && couponDisc > 0;
+
+  const studentDiscountCents = studentApplied ? studentCandidate : 0;
+  const couponDiscountCents = couponApplied ? couponDisc : 0;
+  const appliedDiscount = studentApplied ? studentDiscountCents : couponDiscountCents;
+
+  // free_delivery (a coupon kind) discounts delivery, never the taxable base.
+  const discountOnDelivery = couponApplied && couponFreeDelivery;
+  const baseDiscount = discountOnDelivery ? 0 : appliedDiscount;
+  const deliveryDiscount = discountOnDelivery ? Math.min(deliveryFeeCents, appliedDiscount) : 0;
+
+  const taxableBaseCents = Math.max(0, base - baseDiscount);
+  const taxCents = calcTax(taxableBaseCents, taxRate);
+  const totalCents = Math.max(0, taxableBaseCents + taxCents + (deliveryFeeCents - deliveryDiscount));
+
+  return {
+    base_cents: base,
+    student_discount_applied: studentApplied,
+    student_discount_cents: studentDiscountCents,   // → bookings.discount_cents
+    coupon_discount_cents: couponDiscountCents,      // → bookings.discount_applied_cents
+    discount_total_cents: appliedDiscount,           // → bookings.discount_total_cents
+    base_discount_cents: baseDiscount,
+    delivery_discount_cents: deliveryDiscount,
+    tax_rate: taxRate,
+    tax_cents: taxCents,
+    delivery_fee_cents: deliveryFeeCents,
+    total_cents: totalCents,
+  };
+}
+
+module.exports = { computeQuote, priceWithDiscounts, DELIVERY_FEE_CENTS };

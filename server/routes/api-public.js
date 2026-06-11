@@ -20,7 +20,7 @@ const chargesSvc = require('../services/charges');
 const couponsSvc = require('../services/coupons');
 const { generatePdf } = require('../services/contract');
 const { getBusyRanges } = require('../services/availability');
-const { computeQuote } = require('../services/pricing');
+const { computeQuote, priceWithDiscounts, DELIVERY_FEE_CENTS } = require('../services/pricing');
 const { formatCents } = require('../utils/money');
 const { todayUTC, addDays, parseDateOnly, toDateOnly } = require('../utils/date');
 
@@ -154,12 +154,51 @@ router.post('/quote', quoteLimiter, async (req, res, next) => {
     if (!trailer) return res.status(404).json({ error: 'Trailer not found' });
 
     const quote = await computeQuote(trailer, body);
+
+    // Discount-aware pricing (single source shared with createBooking). The
+    // delivery fee applies only to a trailer/dumpster delivery — bins are free.
+    const isBins = trailer.type === 'bins';
+    const deliveryFee = (!isBins && body.fulfillment === 'delivery') ? DELIVERY_FEE_CENTS : 0;
+
+    // Validate an optional code without throwing; surface validity to the form.
+    let couponDiscountCents = 0;
+    let couponFreeDelivery = false;
+    let couponInfo = null;
+    if (body.coupon_code && String(body.coupon_code).trim()) {
+      const v = await couponsSvc.validateCoupon({
+        code: body.coupon_code, trailerId: trailer.id, baseAmountCents: quote.base_cents,
+      });
+      if (v.valid) {
+        couponFreeDelivery = !!v.free_delivery;
+        couponDiscountCents = couponFreeDelivery ? deliveryFee : (v.discount_applied_cents || 0);
+        couponInfo = { valid: true, code: v.code, line_label: v.line_label, message: v.message };
+      } else {
+        couponInfo = { valid: false, message: v.message };
+      }
+    }
+
+    // .edu student discount applies to bins only (matches createBooking).
+    const email = String(body.customer_email || '').trim();
+    const studentEligible = isBins && /\.edu$/i.test(email);
+
+    const priced = priceWithDiscounts(quote, {
+      studentEligible, couponDiscountCents, couponFreeDelivery, deliveryFeeCents: deliveryFee,
+    });
+
     res.json({
       trailer: { id: trailer.id, slug: trailer.slug, name: trailer.name, type: trailer.type },
       ...quote,
+      // Discounted, authoritative display numbers (override quote's pre-discount tax/total).
+      delivery_fee_cents: deliveryFee,
+      student_discount_applied: priced.student_discount_applied,
+      discount_cents: priced.discount_total_cents,
+      tax_cents: priced.tax_cents,
+      total_cents: priced.total_cents,
+      coupon: couponInfo,
       base_fmt: formatCents(quote.base_cents),
-      tax_fmt: formatCents(quote.tax_cents),
-      total_fmt: formatCents(quote.total_cents),
+      discount_fmt: formatCents(priced.discount_total_cents),
+      tax_fmt: formatCents(priced.tax_cents),
+      total_fmt: formatCents(priced.total_cents),
     });
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ error: err.message });
@@ -229,10 +268,14 @@ router.post('/bookings/:id/checkout', async (req, res, next) => {
   try {
     const booking = await bookingSvc.getById(req.params.id);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    if (booking.status === 'paid') {
+    if (booking.status === 'paid' || booking.payment_status === 'paid') {
       return res.json({ already_paid: true, redirect: `/book/${booking.ref_code}` });
     }
-    if (booking.status !== 'signed') {
+    if (booking.status === 'expired' || booking.status === 'cancelled') {
+      return res.status(409).json({ error: 'This booking has expired — please start a new booking.' });
+    }
+    // Must be signed first (status advances to 'pending_payment' on signature).
+    if (!booking.contract_signed_at || booking.status !== 'pending_payment') {
       return res.status(409).json({ error: 'Please sign the rental agreement before paying.' });
     }
 

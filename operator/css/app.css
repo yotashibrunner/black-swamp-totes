@@ -712,6 +712,11 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; bo
 .ref-booking-sub { font-size: 0.78rem; }
 .ref-booking-amt { font-weight: 700; white-space: nowrap; }
 
+/* ── Awaiting-payment bookings (not fulfillable) ─────────────────────── */
+.booking-awaiting-pay { opacity: 0.72; }
+.booking-awaiting-pay .booking-stripe { background: repeating-linear-gradient(45deg, #d69e2e, #d69e2e 4px, transparent 4px, transparent 8px) !important; }
+.done-note.warn-note { color: #f0c674; font-weight: 600; }
+
 /* ── Financials ──────────────────────────────────────────────────────── */
 .fin-tax-card {
   border-color: var(--accent);

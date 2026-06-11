@@ -15,7 +15,12 @@
 const { query } = require('../db');
 
 const DAY_MS = 86400000;
-const OCCUPYING_STATUSES = ['pending', 'signed', 'paid', 'confirmed', 'out'];
+// Statuses that hold a unit. `pending` (in cart) and `pending_payment` (signed,
+// not yet paid) hold inventory only TRANSIENTLY — the cron job expires them
+// after ~2h (status -> 'expired'), which drops them out of this set and releases
+// the hold. Paid/confirmed/out are durable holds. ('signed' is retired in favor
+// of 'pending_payment'; left out here so any legacy 'signed' row stops holding.)
+const OCCUPYING_STATUSES = ['pending', 'pending_payment', 'paid', 'confirmed', 'out'];
 
 // Bookable units for a SKU = owned minus held. Never negative.
 function capacity(trailer) {

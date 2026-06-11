@@ -184,120 +184,121 @@
       var PER_BIN_WK = <%= trailer.weekly_rate || 0 %>;   // custom: per bin per week
       var TAX_RATE = <%= quote.tax_rate || 0 %>;
       var FIXED_BASE = <%= quote.base_cents %>;            // non-custom base (incl. extra days)
-      var coupon = null; // { code, discount_applied_cents, free_delivery, line_label }
+      var couponCode = null;   // last applied promo/partner code; the server validates + prices it
+      var quoteTimer = null;
 
-      // Current pre-tax base. For custom, full weeks at the per-bin weekly rate
-      // plus any extra days at the per-bin extension rate (recomputed as qty changes).
-      function baseCents() {
-        if (IS_CUSTOM) {
-          var qty = Math.max(10, parseInt(el('binQty') ? el('binQty').value : 0, 10) || 10);
-          return (PER_BIN_WK * qty * WEEKS) + (EXT_RATE * qty * EXTRA_DAYS);
-        }
-        return FIXED_BASE;
-      }
-      function deliveryFor() {
-        if (IS_BINS) return 0; // bins delivery is always free
+      function currentFulfillment() {
+        if (IS_BINS) return 'delivery';
         var d = document.querySelector('input[name="fulfillment"]:checked');
-        return d && d.value === 'delivery' ? DELIVERY_FEE : 0;
+        return d && d.value === 'delivery' ? 'delivery' : 'pickup';
       }
-      function discountFor(delivery, base) {
-        if (!coupon) return 0;
-        if (coupon.free_delivery) return delivery > 0 ? delivery : 0;
-        return coupon.discount_applied_cents || 0;
+      function binQty() {
+        return IS_CUSTOM ? Math.max(10, parseInt((el('binQty') || {}).value, 10) || 10) : null;
       }
 
-      // .edu student discount: 20% off the package price. Bins only, and it does
-      // NOT stack with a promo code — whichever discount is greater wins.
-      function isEduEmail() {
-        var em = (el('email') && el('email').value || '').trim();
-        return IS_BINS && /\.edu$/i.test(em);
+      // Non-money UI that can update instantly (no server round-trip needed).
+      function nonMoneyUI() {
+        var delivery = !IS_BINS && currentFulfillment() === 'delivery';
+        var label = el('timeLabel');
+        if (label && !IS_BINS) label.textContent = IS_DUMPSTER ? 'Preferred Drop-off Time' : (delivery ? 'Preferred Delivery Time' : 'Preferred Pickup Time');
+        var addrRow = el('addrRow');
+        if (addrRow) addrRow.hidden = !delivery;
       }
-      function studentDiscountCents() {
-        return isEduEmail() ? Math.round(baseCents() * 0.20) : 0;
-      }
-      function updateStudentBox() {
+
+      function updateStudentBox(q) {
         var box = el('studentBox');
         if (!box) return;
-        if (isEduEmail()) {
-          var base = baseCents();
-          var disc = Math.round(base * 0.20);
-          el('sbOriginal').textContent = money(base);
-          el('sbDiscount').textContent = '-' + money(disc);
-          el('sbTotal').textContent = money(base - disc);
+        if (q && q.student_discount_applied) {
+          el('sbOriginal').textContent = q.base_fmt;
+          el('sbDiscount').textContent = '-' + (q.discount_fmt || money(q.discount_cents || 0));
+          el('sbTotal').textContent = q.total_fmt;
           box.hidden = false;
         } else {
           box.hidden = true;
         }
       }
 
-      function refresh() {
-        var base = baseCents();
-        var delivery = deliveryFor();
-        var couponDisc = discountFor(delivery, base);
-        var studentDisc = studentDiscountCents();
-        var useStudent = studentDisc > couponDisc && studentDisc > 0;
-        // Tax is charged on the POST-discount base (matches the server). A
-        // free_delivery code reduces the (untaxed) delivery fee, not the base.
-        var couponFreeDelivery = coupon && coupon.free_delivery;
-        var baseDisc = useStudent ? studentDisc : (couponFreeDelivery ? 0 : couponDisc);
-        var deliveryDisc = (!useStudent && couponFreeDelivery) ? Math.min(delivery, couponDisc) : 0;
-        var taxable = Math.max(0, base - baseDisc);
-        var tax = Math.round(taxable * TAX_RATE);
-        var total = taxable + tax + (delivery - deliveryDisc);
-        if (total < 0) total = 0;
-        if (el('sumSubtotal')) el('sumSubtotal').textContent = money(base);
-        if (el('sumTax')) el('sumTax').textContent = money(tax);
-        if (el('sumBins') && el('binQty')) el('sumBins').textContent = Math.max(10, parseInt(el('binQty').value, 10) || 10);
+      // Render the order summary ENTIRELY from the server quote (single source of
+      // truth: pricing.computeQuote + priceWithDiscounts). A discount row shows
+      // ONLY when the server actually applied one, and the total always reflects it.
+      function renderQuote(q) {
+        if (!q) return;
+        if (el('sumSubtotal')) el('sumSubtotal').textContent = q.base_fmt;
+        if (el('sumTax')) el('sumTax').textContent = q.tax_fmt;
+        if (el('sumBins') && q.bin_count != null) el('sumBins').textContent = q.bin_count;
+
         var feeRow = el('sumDeliveryRow');
-        if (feeRow) feeRow.hidden = delivery <= 0;
-        var discRow = el('sumDiscountRow');
-        if (discRow) { var showCoupon = !useStudent && couponDisc > 0; discRow.hidden = !showCoupon; if (showCoupon) el('sumDiscount').textContent = '−' + money(couponDisc); }
-        var stuRow = el('sumStudentRow');
-        if (stuRow) { stuRow.hidden = !useStudent; if (useStudent) el('sumStudent').textContent = '−' + money(studentDisc); }
-        el('sumTotal').textContent = money(total);
-        updateStudentBox();
-        var label = el('timeLabel');
-        if (label && !IS_BINS) {
-          label.textContent = IS_DUMPSTER ? 'Preferred Drop-off Time' : (delivery > 0 ? 'Preferred Delivery Time' : 'Preferred Pickup Time');
+        if (feeRow) {
+          var fee = q.delivery_fee_cents || 0;
+          feeRow.hidden = fee <= 0;
+          if (fee > 0 && el('sumDelivery')) el('sumDelivery').textContent = money(fee);
         }
-        var addrRow = el('addrRow');
-        if (addrRow) addrRow.hidden = delivery <= 0;
+
+        var isStudent = !!q.student_discount_applied;
+        var disc = q.discount_cents || 0;
+        var discRow = el('sumDiscountRow');
+        if (discRow) {
+          var showCoupon = !isStudent && disc > 0;
+          discRow.hidden = !showCoupon;
+          if (showCoupon) {
+            if (el('sumDiscountLabel')) el('sumDiscountLabel').textContent = (q.coupon && q.coupon.line_label) || 'Discount';
+            if (el('sumCouponCode')) el('sumCouponCode').textContent = (q.coupon && q.coupon.code) ? '(' + q.coupon.code + ')' : '';
+            el('sumDiscount').textContent = '−' + money(disc);
+          }
+        }
+        var stuRow = el('sumStudentRow');
+        if (stuRow) { stuRow.hidden = !isStudent; if (isStudent) el('sumStudent').textContent = '−' + money(disc); }
+
+        if (el('sumTotal')) el('sumTotal').textContent = q.total_fmt;
+        updateStudentBox(q);
+
+        // Coupon feedback message (only after a code has been entered).
+        var msg = el('couponMsg');
+        if (msg && couponCode) {
+          if (q.coupon && q.coupon.valid === false) { msg.style.color = 'var(--hazard)'; msg.textContent = q.coupon.message || 'That code isn’t valid.'; }
+          else if (q.coupon && q.coupon.valid) { msg.style.color = 'var(--green)'; msg.textContent = q.coupon.message || 'Discount applied.'; }
+        } else if (msg && !couponCode) { msg.textContent = ''; }
       }
 
-      if (el('email')) el('email').addEventListener('input', refresh);
-      if (el('binQty')) el('binQty').addEventListener('input', refresh);
-      Array.prototype.forEach.call(document.querySelectorAll('input[name="fulfillment"]'), function (r) {
-        r.addEventListener('change', refresh);
-      });
-      refresh();
+      function quoteBody() {
+        return {
+          slug: sel.slug,
+          period_type: sel.period_type,
+          start_at: sel.start_at, end_at: sel.end_at,
+          extra_days: sel.extra_days, quantity: sel.extra_days,
+          bin_quantity: binQty(),
+          fulfillment: currentFulfillment(),
+          customer_email: (el('email') && el('email').value || '').trim(),
+          coupon_code: couponCode || undefined,
+        };
+      }
 
-      // Discount code: validate against the current base, reflect in the total.
-      el('applyCoupon').addEventListener('click', async function () {
-        var code = el('couponCode').value.trim().toUpperCase();
-        var msg = el('couponMsg');
-        if (!code) { coupon = null; el('sumCouponCode').textContent = ''; msg.textContent = ''; refresh(); return; }
-        var btn = el('applyCoupon'); btn.disabled = true; var label = btn.textContent; btn.textContent = '…';
+      async function refreshQuote() {
+        nonMoneyUI();
         try {
-          var res = await fetch('/api/coupons/validate', {
+          var res = await fetch('/api/quote', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: code, trailer_id: TRAILER_ID, base_amount_cents: baseCents() }),
+            body: JSON.stringify(quoteBody()),
           });
-          var data = await res.json().catch(function () { return {}; });
-          if (data && data.valid) {
-            coupon = { code: data.code || code, discount_applied_cents: data.discount_applied_cents || 0, free_delivery: !!data.free_delivery, line_label: data.line_label || 'Discount' };
-            if (el('sumDiscountLabel')) el('sumDiscountLabel').textContent = coupon.line_label;
-            el('sumCouponCode').textContent = '(' + coupon.code + ')';
-            msg.style.color = 'var(--green)'; msg.textContent = data.message || 'Discount applied.';
-          } else {
-            coupon = null; el('sumCouponCode').textContent = '';
-            msg.style.color = 'var(--hazard)'; msg.textContent = (data && data.message) || 'That code isn’t valid.';
-          }
-        } catch (e) {
-          coupon = null; el('sumCouponCode').textContent = '';
-          msg.style.color = 'var(--hazard)'; msg.textContent = 'Could not check that code — try again.';
-        } finally {
-          btn.disabled = false; btn.textContent = label; refresh();
-        }
+          var data = await res.json().catch(function () { return null; });
+          if (res.ok) renderQuote(data);
+        } catch (e) { /* keep the last good numbers on a transient error */ }
+      }
+      function scheduleRefresh() { clearTimeout(quoteTimer); quoteTimer = setTimeout(refreshQuote, 250); }
+
+      if (el('email')) el('email').addEventListener('input', scheduleRefresh);
+      if (el('binQty')) el('binQty').addEventListener('input', scheduleRefresh);
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="fulfillment"]'), function (r) {
+        r.addEventListener('change', refreshQuote);
+      });
+      refreshQuote();
+
+      // Discount code: hand the code to the server, which validates + prices it.
+      // The quote response carries validity, the label, and the new total.
+      el('applyCoupon').addEventListener('click', function () {
+        couponCode = el('couponCode').value.trim().toUpperCase() || null;
+        if (!couponCode && el('sumCouponCode')) el('sumCouponCode').textContent = '';
+        refreshQuote();
       });
 
       form.addEventListener('submit', async function (e) {
@@ -318,7 +319,7 @@
           customer: { name: name, phone: phone, email: email },
           notes: el('notes').value.trim(),
           start_time: el('startTime').value || null,
-          coupon_code: coupon ? coupon.code : undefined,
+          coupon_code: couponCode || undefined,
           terms_accepted: true,
           terms_version: TERMS_VERSION,
         });

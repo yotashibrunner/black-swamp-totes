@@ -187,8 +187,16 @@ function fmtTime(iso) {
 }
 
 function serializeBooking(b) {
+  // A booking is fulfillable only once payment_status='paid'. Anything still
+  // unpaid (pending / pending_payment) is "awaiting payment" and must never be
+  // shown as a deliverable order. signed_unpaid distinguishes "signed but not
+  // paid" from "not even signed yet".
+  const awaitingPayment = b.payment_status !== 'paid'
+    && !['out', 'returned', 'cancelled', 'expired'].includes(b.status);
   return {
     ...b,
+    awaiting_payment: awaitingPayment,
+    signed_unpaid: awaitingPayment && !!b.contract_signed_at,
     total_fmt: formatCents(b.total_cents),
     amount_paid_fmt: formatCents(b.amount_paid_cents),
     delivery_fee_fmt: formatCents(b.delivery_fee_cents),

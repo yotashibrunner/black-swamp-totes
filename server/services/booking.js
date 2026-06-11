@@ -9,16 +9,16 @@ const { pool } = require('../db');
 const config = require('../config');
 const trailerSvc = require('./trailer');
 const couponsSvc = require('./coupons');
-const { computeQuote, DELIVERY_FEE_CENTS } = require('./pricing');
+const { computeQuote, priceWithDiscounts, DELIVERY_FEE_CENTS } = require('./pricing');
 const { OCCUPYING_STATUSES } = require('./availability');
 const { buildAgreement, toPlainText, CONTRACT_VERSION } = require('./contract');
 const { parseDateOnly, addDays, todayUTC, toDateOnly } = require('../utils/date');
 const { refCode } = require('../utils/ref-code');
-const { calcTax } = require('../utils/money');
 
 // Statuses that commit physical bins (count toward the global inventory cap and
-// the demand tracker). A booking holds bins from creation through pickup.
-const GLOBAL_BIN_STATUSES = ['pending', 'signed', 'paid', 'confirmed', 'out'];
+// the demand tracker). A booking holds bins from creation through pickup;
+// 'pending'/'pending_payment' holds are transient (cron expires them after ~2h).
+const GLOBAL_BIN_STATUSES = ['pending', 'pending_payment', 'paid', 'confirmed', 'out'];
 
 function badRequest(message, status = 400) {
   const err = new Error(message);
@@ -172,33 +172,29 @@ async function createBooking(input) {
   }
 
   // .edu student discount — 20% off the pre-tax package price. Does NOT stack
-  // with a promo code: whichever discount is greater wins (no double discount).
+  // with a promo code: whichever discount is greater wins. The reconciliation +
+  // post-discount tax math lives in pricing.priceWithDiscounts (the single
+  // source shared with /api/quote), so the summary the customer saw equals what
+  // we store and charge.
   const customerEmail = ((input.customer && input.customer.email) || '').trim();
   const studentEligible = isBins && /\.edu$/i.test(customerEmail);
-  const studentDiscountCents = studentEligible ? Math.round(quote.base_cents * 0.20) : 0;
-  let studentDiscountApplied = false;
-  if (studentDiscountCents > discountCents) {
-    // Student discount beats the coupon — apply it and drop the coupon.
-    studentDiscountApplied = true;
-    couponId = null;
-    discountCents = 0;
-    couponFreeDelivery = false;
-  }
-  const studentDiscountFinal = studentDiscountApplied ? studentDiscountCents : 0;
-  const appliedDiscount = studentDiscountApplied ? studentDiscountFinal : discountCents;
+  const priced = priceWithDiscounts(quote, {
+    studentEligible,
+    couponDiscountCents: discountCents,
+    couponFreeDelivery,
+    deliveryFeeCents: deliveryFee,
+  });
 
-  // Sales tax is charged on the POST-discount taxable base (what the customer
-  // actually pays), per Ohio. A percentage/flat code reduces the taxable base; a
-  // free_delivery code reduces the (untaxed) delivery fee instead, so it must
-  // NOT shrink the taxable base. Tax is recomputed here at the booking's rate
-  // rather than reusing quote.tax_cents (which was computed pre-discount).
-  const discountOnDelivery = !studentDiscountApplied && couponFreeDelivery;
-  const baseDiscount = discountOnDelivery ? 0 : appliedDiscount;
-  const deliveryDiscount = discountOnDelivery ? Math.min(deliveryFee, appliedDiscount) : 0;
-  const taxRate = quote.tax_rate;
-  const taxableBaseCents = Math.max(0, quote.base_cents - baseDiscount);
-  const taxCents = calcTax(taxableBaseCents, taxRate);
-  const totalCents = Math.max(0, taxableBaseCents + taxCents + (deliveryFee - deliveryDiscount));
+  // Map the reconciled breakdown onto the stored columns. When the student
+  // discount wins, the coupon is dropped entirely (id + amount cleared).
+  const studentDiscountApplied = priced.student_discount_applied;
+  if (studentDiscountApplied) couponId = null;
+  const studentDiscountFinal = priced.student_discount_cents;     // → discount_cents
+  const couponDiscountStored = priced.coupon_discount_cents;      // → discount_applied_cents
+  const appliedDiscount = priced.discount_total_cents;            // → discount_total_cents
+  const taxRate = priced.tax_rate;
+  const taxCents = priced.tax_cents;
+  const totalCents = priced.total_cents;
 
   const client = await pool.connect();
   try {
@@ -273,7 +269,7 @@ async function createBooking(input) {
           [ref, trailer.id, customerId, startAt.toISOString(), end.toISOString(), periodType, quantity,
             tireCount, baseAmount, extraCharges, taxCents, totalCents,
             (input.notes || '').trim() || null, fulfillment, deliveryAddress, deliveryFee,
-            couponId, discountCents, binCount, dollyCount, pickupAddress,
+            couponId, couponDiscountStored, binCount, dollyCount, pickupAddress,
             studentDiscountApplied, studentDiscountFinal,
             taxRate, appliedDiscount, termsVersion, termsIp]
         );
@@ -343,13 +339,18 @@ function buildAgreementFor(row) {
   return buildAgreement(asAgreementInput(row));
 }
 
-// Capture the e-signature and lock the immutable snapshot. Booking must be
-// pending. Returns the updated booking row.
+// Capture the e-signature and lock the immutable snapshot. This records the
+// SIGNATURE ONLY and advances the booking to 'pending_payment' (still
+// payment_status='unpaid'). It must NOT touch any fulfillment state
+// (pickup_requested_at / picked_up_at / returned_at) — payment is the only gate
+// to a live order (see markPaidBySession). Booking must be pending.
 async function signBooking(id, sig) {
   const row = await getById(id);
   if (!row) throw badRequest('Booking not found.', 404);
-  if (row.status === 'signed' || row.status === 'paid') {
-    return row; // already signed — idempotent
+  // Idempotent once signed or paid (no re-signing, no state regression).
+  if (row.status === 'pending_payment' || row.status === 'paid'
+      || row.payment_status === 'paid' || row.contract_signed_at) {
+    return row;
   }
   if (row.status !== 'pending') throw badRequest('This booking can no longer be signed.', 409);
 
@@ -361,7 +362,8 @@ async function signBooking(id, sig) {
 
   await pool.query(
     `UPDATE bookings SET
-       status = 'signed',
+       status = 'pending_payment',
+       payment_status = 'unpaid',
        contract_version = $2,
        contract_signed_at = NOW(),
        contract_signed_name = $3,
@@ -441,7 +443,7 @@ async function attachCheckoutSession(bookingId, sessionId) {
 // All rows below carry the trailer + customer fields the PWA renders, so the
 // dashboard / schedule / detail screens never make a second round-trip.
 const OPERATOR_SELECT = `
-  SELECT b.id, b.ref_code, b.status, b.start_at, b.end_at, b.period_type, b.quantity,
+  SELECT b.id, b.ref_code, b.status, b.payment_status, b.paid_at, b.start_at, b.end_at, b.period_type, b.quantity,
          b.total_cents, b.amount_paid_cents, b.tire_count,
          b.picked_up_at, b.returned_at, b.customer_notes, b.operator_notes,
          b.contract_signed_at, b.contract_signed_name, b.created_at,
@@ -461,8 +463,13 @@ const OPERATOR_SELECT = `
 
 // Statuses that represent an upcoming, confirmed-but-not-yet-out rental.
 const UPCOMING_STATUSES = ['paid', 'confirmed'];
-// A booking that is scheduled but not yet out (delivery still ahead).
-const DELIVER_STATUSES = ['pending', 'signed', 'paid', 'confirmed'];
+// A booking that is scheduled but not yet out (delivery still ahead). PAID ONLY
+// — an unpaid (pending / pending_payment) booking is never a fulfillable order,
+// so it must not appear in the dashboard's actionable "Deliver Today" / "Coming
+// Up" sections.
+const DELIVER_STATUSES = ['paid', 'confirmed'];
+// Non-orders that never belong in any operator listing.
+const HIDDEN_STATUSES = ['cancelled', 'expired'];
 
 // Operator dashboard — only what needs action today, plus a 3-day heads-up:
 //   dropoffs        — being delivered today (scheduled, not yet out)
@@ -565,10 +572,10 @@ async function getSchedule(dateStr) {
 
   const { rows } = await pool.query(
     `${OPERATOR_SELECT}
-      WHERE b.status <> 'cancelled'
+      WHERE b.status <> ALL($3)
         AND b.start_at < $2 AND b.end_at > $1
       ORDER BY b.start_at, b.end_at, t.name`,
-    [d0, d1]
+    [d0, d1, HIDDEN_STATUSES]
   );
 
   const bookings = rows.map((r) => ({
@@ -588,10 +595,10 @@ async function getSchedule(dateStr) {
 async function getBookingsInRange(from, to) {
   const { rows } = await pool.query(
     `${OPERATOR_SELECT}
-      WHERE b.status <> 'cancelled'
+      WHERE b.status <> ALL($3)
         AND b.start_at < $2 AND b.end_at > $1
       ORDER BY b.start_at, t.name`,
-    [from, to]
+    [from, to, HIDDEN_STATUSES]
   );
   return rows;
 }
@@ -625,7 +632,7 @@ async function updateBooking(id, patch, adminUserId) {
 
     // Lock the row so concurrent operators can't double-transition it.
     const cur = await client.query(
-      'SELECT id, status, trailer_id FROM bookings WHERE id = $1 FOR UPDATE',
+      'SELECT id, status, payment_status, trailer_id FROM bookings WHERE id = $1 FOR UPDATE',
       [id]
     );
     if (!cur.rows.length) throw badRequest('Booking not found.', 404);
@@ -635,6 +642,12 @@ async function updateBooking(id, patch, adminUserId) {
     const values = [];
 
     if (transition) {
+      // Hard gate: an unpaid booking is never fulfillable. Payment (the Stripe
+      // webhook) is the only path to a live order — block mark-out/returned on
+      // anything not paid, independent of the status-transition table.
+      if (booking.payment_status !== 'paid') {
+        throw badRequest('This booking is not paid yet — it cannot be fulfilled until payment completes.', 409);
+      }
       if (!transition.from.includes(booking.status)) {
         throw badRequest(
           `Cannot move a '${booking.status}' booking to '${patch.status}'.`,
@@ -693,8 +706,25 @@ async function updateBooking(id, patch, adminUserId) {
   return getById(id);
 }
 
+// Auto-expire abandoned unpaid carts. A booking that is still unpaid and in a
+// pre-payment status after `olderThanMinutes` is moved to 'expired', which drops
+// it out of OCCUPYING_STATUSES (releasing its inventory hold) and out of every
+// operator view. Idempotent; returns the number expired. Called from the cron.
+async function expireAbandoned(olderThanMinutes = 120) {
+  const minutes = Math.max(1, Math.floor(Number(olderThanMinutes) || 120));
+  const { rowCount } = await pool.query(
+    `UPDATE bookings
+        SET status = 'expired', updated_at = NOW()
+      WHERE payment_status = 'unpaid'
+        AND status IN ('pending', 'pending_payment')
+        AND created_at < NOW() - ($1 || ' minutes')::interval`,
+    [String(minutes)]
+  );
+  return rowCount || 0;
+}
+
 module.exports = {
   createBooking, getById, getByRef, signBooking, markPaidBySession,
-  attachCheckoutSession, buildAgreementFor,
+  attachCheckoutSession, buildAgreementFor, expireAbandoned,
   getDashboard, getSchedule, updateBooking, getBookingsInRange, getBinDemand,
 };
