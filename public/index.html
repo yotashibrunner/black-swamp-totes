@@ -10,6 +10,8 @@
 <meta property="og:type" content="website" />
 <link rel="icon" href="images/logo.png?v=2" />
 <link rel="apple-touch-icon" href="images/logo.png?v=2" />
+<!-- Hero LCP image: preload the WebP so the largest above-the-fold element loads fast. -->
+<link rel="preload" as="image" href="/images/BST_hero_stacks_16x9.webp" type="image/webp" />
 <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -56,10 +58,15 @@
   @media(max-width:780px){.nav-links a:not(.nav-cta){display:none;}}
 
   /* HERO */
-  .hero{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;}
-  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(1000px 700px at 78% 12%,rgba(34,197,94,.28),transparent 60%),radial-gradient(820px 600px at 12% 92%,rgba(22,101,52,.38),transparent 62%),linear-gradient(160deg,#0d2412,#0a1a0a 62%);z-index:-2;}
+  /* Hero photo background: WebP primary, JPG fallback (image-set), cover+center. */
+  .hero{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;background-color:var(--swamp);background-image:url('/images/BST_hero_stacks_16x9.jpg');background-image:-webkit-image-set(url('/images/BST_hero_stacks_16x9.webp') type('image/webp'),url('/images/BST_hero_stacks_16x9.jpg') type('image/jpeg'));background-image:image-set(url('/images/BST_hero_stacks_16x9.webp') type('image/webp'),url('/images/BST_hero_stacks_16x9.jpg') type('image/jpeg'));background-size:cover;background-position:center;}
+  /* Dark gradient overlay keeps the headline/CTA legible over the busy photo. */
+  .hero::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,26,10,.45) 0%,rgba(10,26,10,.82) 100%);z-index:-1;}
   .hero::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(circle at 50% 35%,#000 28%,transparent 78%);mask-image:radial-gradient(circle at 50% 35%,#000 28%,transparent 78%);z-index:-1;}
-  .hero-in{max-width:820px;padding:120px 24px 80px;}
+  /* Logo/headline/CTA sit ABOVE the overlay. */
+  .hero-in{max-width:820px;padding:120px 24px 80px;position:relative;z-index:1;}
+  /* Mobile crops tighter to center; deepen the overlay so the headline stays legible. */
+  @media(max-width:640px){.hero{background-position:center;}.hero::before{background:linear-gradient(180deg,rgba(10,26,10,.55) 0%,rgba(10,26,10,.9) 100%);}}
   .hero h1{font-size:clamp(42px,8vw,72px);font-weight:800;line-height:1.05;letter-spacing:-.03em;margin:18px 0;}
   .hero p.lead{font-size:clamp(17px,2.2vw,20px);color:rgba(255,255,255,.72);max-width:640px;margin:0 auto 34px;}
   .hero-btns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
